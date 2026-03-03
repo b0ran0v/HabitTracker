@@ -1,0 +1,28 @@
+﻿
+<resources>
+    <!-- Primary Color - Modern Indigo -->
+    <color name="colorPrimary">#5C6BC0</color>
+    <color name="colorPrimaryDark">#3F51B5</color>
+    <color name="colorAccent">#FF4081</color>
+    
+    <!-- Background and Surface Colors -->
+    <color name="backgroundColor">#F5F5F7</color>
+    <color name="surfaceColor">#FFFFFF</color>
+    
+    <!-- Text Colors -->
+    <color name="textColorPrimary">#1A1A1A</color>
+    <color name="textColorSecondary">#757575</color>
+    
+    <!-- Status Colors -->
+    <color name="colorComplete">#4CAF50</color>
+    <color name="colorUndo">#FF9800</color>
+    <color name="colorDelete">#F44336</color>
+
+    <!-- Habit Colors -->
+    <color name="habitColor1">#5C6BC0</color> <!-- Indigo -->
+    <color name="habitColor2">#66BB6A</color> <!-- Green -->
+    <color name="habitColor3">#FFA726</color> <!-- Orange -->
+    <color name="habitColor4">#FF5252</color> <!-- Red -->
+    <color name="habitColor5">#26C6DA</color> <!-- Cyan -->
+    <color name="habitColor6">#AB47BC</color> <!-- Purple -->
+</resources>

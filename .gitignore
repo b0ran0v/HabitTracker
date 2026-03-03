@@ -1,0 +1,39 @@
+﻿# Visual Studio
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userprefs
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+
+# NuGet
+*.lock.json
+# NuGet Packages
+*.nupkg
+# The packages folder can generally be ignored because of Package Restore
+**/[Pp]ackages/*
+# except build/, which is used as an MSBuild target.
+!**/[Pp]ackages/build/
+# Uncomment if necessary however generally it will be regenerated when needed
+#!**/[Pp]ackages/repositories.config
+# NuGet v3's project.json files produces more ignorable files
+*.nuget.props
+*.nuget.targets
+
+# MAUI / Xamarin
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# OS generated files
+.DS_Store
+Thumbs.db
