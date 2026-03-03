@@ -5,6 +5,7 @@ using Google.Android.Material.DatePicker;
 using AndroidX.RecyclerView.Widget;
 using HabitTracker.Data;
 using Android.Graphics.Drawables;
+using AlertDialog = AndroidX.AppCompat.App.AlertDialog;
 using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker
@@ -13,6 +14,7 @@ namespace HabitTracker
     {
         private RecyclerView? _recyclerView;
         private Button? _addButton;
+        private Button? _copyWeekButton;
         private TextView? _dateText;
         private TextView? _dayOfWeekText;
         private TextView? _relativeDateText;
@@ -32,6 +34,7 @@ namespace HabitTracker
 
             _recyclerView = view?.FindViewById<RecyclerView>(ResourceConstant.Id.tracker_list);
             _addButton = view?.FindViewById<Button>(ResourceConstant.Id.add_tracked_habit_button);
+            _copyWeekButton = view?.FindViewById<Button>(ResourceConstant.Id.copy_week_button);
             _dateText = view?.FindViewById<TextView>(ResourceConstant.Id.selected_date_text);
             _dayOfWeekText = view?.FindViewById<TextView>(ResourceConstant.Id.selected_day_of_week);
             _relativeDateText = view?.FindViewById<TextView>(ResourceConstant.Id.relative_date_text);
@@ -78,6 +81,11 @@ namespace HabitTracker
             if (_addButton != null)
             {
                 _addButton.Click += (_, _) => { ShowAddTrackedHabitDialog(); };
+            }
+
+            if (_copyWeekButton != null)
+            {
+                _copyWeekButton.Click += async (_, _) => { await CopyHabitsForWeek(); };
             }
 
             if (_pickDateButton != null)
@@ -145,7 +153,7 @@ namespace HabitTracker
         {
             _dateText?.Text = _selectedDate.ToString("MMMM dd, yyyy");
 
-            _dayOfWeekText?.Text = _selectedDate.DayOfWeek.ToString();
+            _dayOfWeekText?.Text = _selectedDate.ToString("dddd");
 
             if (_relativeDateText != null)
             {
@@ -246,34 +254,93 @@ namespace HabitTracker
             builder.Show();
         }
 
-        private class DatePickerPositiveListener(Action<long> onSelection)
-            : Java.Lang.Object, IMaterialPickerOnPositiveButtonClickListener
+        private async Task CopyHabitsForWeek()
         {
+            if (_database == null || Activity == null) return;
+
+            // Get habits for the currently selected date
+            var currentCompletions = await _database.GetHabitCompletionsForDateAsync(_selectedDate);
+            if (currentCompletions.Count == 0) return;
+
+            // Calculate the start and end of the current week (assuming Monday start)
+            var currentDayOfWeek = (int)_selectedDate.DayOfWeek;
+            var daysToSubtract = (currentDayOfWeek == 0) ? 6 : currentDayOfWeek - 1; // Adjust for Sunday being 0
+            var startOfWeek = _selectedDate.AddDays(-daysToSubtract).Date;
+            
+            for (int i = 0; i < 7; i++)
+            {
+                var targetDate = startOfWeek.AddDays(i);
+                
+                // Skip if target date is the same as the source date (already have habits)
+                if (targetDate == _selectedDate.Date) continue;
+
+                var existingCompletions = await _database.GetHabitCompletionsForDateAsync(targetDate);
+                var existingHabitIds = existingCompletions.Select(c => c.HabitId).ToList();
+
+                foreach (var completion in currentCompletions)
+                {
+                    if (!existingHabitIds.Contains(completion.HabitId))
+                    {
+                        var newCompletion = new HabitCompletion
+                        {
+                            HabitId = completion.HabitId,
+                            CreatedDate = DateTime.Now,
+                            DueDate = targetDate,
+                            CompletedDate = null
+                        };
+                        await _database.SaveHabitCompletionAsync(newCompletion);
+                    }
+                }
+            }
+
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetMessage(GetString(ResourceConstant.String.habits_created));
+            builder.SetPositiveButton(GetString(ResourceConstant.String.ok), (_, _) => { });
+            builder.Show();
+        }
+
+        private class DatePickerPositiveListener : Java.Lang.Object, IMaterialPickerOnPositiveButtonClickListener
+        {
+            private readonly Action<long> _onSelection;
+
+            public DatePickerPositiveListener(Action<long> onSelection)
+            {
+                _onSelection = onSelection;
+            }
+
             public void OnPositiveButtonClick(Java.Lang.Object? selection)
             {
                 if (selection is Java.Lang.Long longSelection)
                 {
-                    onSelection(longSelection.LongValue());
+                    _onSelection(longSelection.LongValue());
                 }
             }
         }
     }
 
-    public class TrackerAdapter(
-        List<Habit> habits,
-        List<HabitCompletion> completions,
-        Action<int> onItemClick,
-        Func<DateTime> getDate)
-        : RecyclerView.Adapter
+    public class TrackerAdapter : RecyclerView.Adapter
     {
-        public override int ItemCount => habits.Count;
+        private readonly List<Habit> _habits;
+        private readonly List<HabitCompletion> _completions;
+        private readonly Action<int> _onItemClick;
+        private readonly Func<DateTime> _getDate;
+
+        public TrackerAdapter(List<Habit> habits, List<HabitCompletion> completions, Action<int> onItemClick, Func<DateTime> getDate)
+        {
+            _habits = habits;
+            _completions = completions;
+            _onItemClick = onItemClick;
+            _getDate = getDate;
+        }
+
+        public override int ItemCount => _habits.Count;
 
         public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
         {
             var trackerHolder = (TrackerViewHolder)holder;
-            var habit = habits[position];
-            var date = getDate().Date;
-            var isCompleted = completions.Any(c =>
+            var habit = _habits[position];
+            var date = _getDate().Date;
+            var isCompleted = _completions.Any(c =>
                 c.HabitId == habit.Id && c.CompletedDate.HasValue && c.CompletedDate.Value.Date == date);
 
             trackerHolder.HabitName.Text = habit.Name;
@@ -319,7 +386,7 @@ namespace HabitTracker
             {
                 if (holder.BindingAdapterPosition != RecyclerView.NoPosition)
                 {
-                    onItemClick(holder.BindingAdapterPosition);
+                    _onItemClick(holder.BindingAdapterPosition);
                 }
             };
 
@@ -328,7 +395,7 @@ namespace HabitTracker
             {
                 if (holder.BindingAdapterPosition != RecyclerView.NoPosition)
                 {
-                    onItemClick(holder.BindingAdapterPosition);
+                    _onItemClick(holder.BindingAdapterPosition);
                 }
             };
 
@@ -420,74 +487,80 @@ namespace HabitTracker
                 float currentDx;
                 Android.Graphics.Paint backgroundPaint;
                 string text;
-                var cornerRadius = 24f;
+                const float cornerRadius = 24f;
 
-                if (dX < 0) // Swipe Left (Delete)
+                switch (dX)
                 {
-                    maxDisplacement = -itemView.Width * 0.2f;
-                    currentDx = Math.Max(dX, maxDisplacement);
-                    backgroundPaint = _deleteBackgroundPaint;
-                    text = _context?.GetString(ResourceConstant.String.delete) ?? "Delete";
-
-                    var left = itemView.Right + currentDx;
-                    var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12,
-                        itemView.Right - 24, itemView.Bottom - 12);
-                    c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
-
-                    var textBounds = new Android.Graphics.Rect();
-                    _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
-
-                    // Clip text
-                    c.Save();
-                    c.ClipRect(background);
-
-                    var textX = left + Math.Abs(currentDx) / 2f - 12;
-                    var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
-                    c.DrawText(text, textX, textY, _textPaint);
-
-                    c.Restore();
-
-                    base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
-                }
-                else if (dX > 0) // Swipe Right (Complete/Undo)
-                {
-                    maxDisplacement = itemView.Width * 0.2f;
-                    currentDx = Math.Min(dX, maxDisplacement);
-
-                    if (_isCompleted(viewHolder.BindingAdapterPosition))
+                    // Swipe Left (Delete)
+                    case < 0:
                     {
-                        backgroundPaint = _undoBackgroundPaint;
-                        text = _context?.GetString(ResourceConstant.String.undo) ?? "Undo";
+                        maxDisplacement = -itemView.Width * 0.2f;
+                        currentDx = Math.Max(dX, maxDisplacement);
+                        backgroundPaint = _deleteBackgroundPaint;
+                        text = _context?.GetString(ResourceConstant.String.delete) ?? "Delete";
+
+                        var left = itemView.Right + currentDx;
+                        var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12,
+                            itemView.Right - 24, itemView.Bottom - 12);
+                        c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
+
+                        var textBounds = new Android.Graphics.Rect();
+                        _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
+
+                        // Clip text
+                        c.Save();
+                        c.ClipRect(background);
+
+                        var textX = left + Math.Abs(currentDx) / 2f - 12;
+                        var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
+                        c.DrawText(text, textX, textY, _textPaint);
+
+                        c.Restore();
+
+                        base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
+                        break;
                     }
-                    else
+                    // Swipe Right (Complete/Undo)
+                    case > 0:
                     {
-                        backgroundPaint = _completeBackgroundPaint;
-                        text = _context?.GetString(ResourceConstant.String.complete) ?? "Complete";
+                        maxDisplacement = itemView.Width * 0.2f;
+                        currentDx = Math.Min(dX, maxDisplacement);
+
+                        if (_isCompleted(viewHolder.BindingAdapterPosition))
+                        {
+                            backgroundPaint = _undoBackgroundPaint;
+                            text = _context?.GetString(ResourceConstant.String.undo) ?? "Undo";
+                        }
+                        else
+                        {
+                            backgroundPaint = _completeBackgroundPaint;
+                            text = _context?.GetString(ResourceConstant.String.complete) ?? "Complete";
+                        }
+
+                        var right = itemView.Left + currentDx;
+                        var background = new Android.Graphics.RectF(itemView.Left + 24, itemView.Top + 12,
+                            right + cornerRadius, itemView.Bottom - 12);
+                        c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
+
+                        var textBounds = new Android.Graphics.Rect();
+                        _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
+
+                        // Clip text
+                        c.Save();
+                        c.ClipRect(background);
+
+                        var textX = itemView.Left + currentDx / 2f + 12;
+                        var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
+                        c.DrawText(text, textX, textY, _textPaint);
+
+                        c.Restore();
+
+                        base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
+                        break;
                     }
-
-                    var right = itemView.Left + currentDx;
-                    var background = new Android.Graphics.RectF(itemView.Left + 24, itemView.Top + 12,
-                        right + cornerRadius, itemView.Bottom - 12);
-                    c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
-
-                    var textBounds = new Android.Graphics.Rect();
-                    _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
-
-                    // Clip text
-                    c.Save();
-                    c.ClipRect(background);
-
-                    var textX = itemView.Left + currentDx / 2f + 12;
-                    var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
-                    c.DrawText(text, textX, textY, _textPaint);
-
-                    c.Restore();
-
-                    base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
-                }
-                else
-                {
-                    base.OnChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                    default:
+                        base.OnChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                        break;
                 }
             }
             else

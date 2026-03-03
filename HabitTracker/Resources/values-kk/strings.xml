@@ -26,4 +26,7 @@
     <string name="select_date">Күнді таңдаңыз</string>
     <string name="undo">Қайтару</string>
     <string name="complete">Аяқтау</string>
+    <string name="copy_for_this_week">Осы аптаға көшіру</string>
+    <string name="habits_created">Әдеттер жасалды</string>
+    <string name="ok">Жарайды</string>
 </resources>

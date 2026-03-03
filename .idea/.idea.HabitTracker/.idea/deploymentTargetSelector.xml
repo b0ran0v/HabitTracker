@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="HabitTracker">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-03-02T20:52:51.690596500Z">
+        <DropdownSelection timestamp="2026-03-03T08:30:25.500988900Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Rustam\.android\avd\Pixel_9.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=49280DLAQ002BP" />
             </handle>
           </Target>
         </DropdownSelection>
