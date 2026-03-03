@@ -1,11 +1,10 @@
 ﻿using _Microsoft.Android.Resource.Designer;
-using Android.App;
+using Android.Content;
 using Android.Views;
 using Google.Android.Material.DatePicker;
 using AndroidX.RecyclerView.Widget;
 using HabitTracker.Data;
 using Android.Graphics.Drawables;
-using AlertDialog = AndroidX.AppCompat.App.AlertDialog;
 using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker
@@ -59,22 +58,18 @@ namespace HabitTracker
 
                 var callback = new TrackerSwipeCallback(async void (position) =>
                     {
-                        if (_database != null && position < _completions.Count)
+                        if (_database == null || position >= _completions.Count) return;
+                        var completion = _completions[position];
+                        await _database.DeleteHabitCompletionAsync(completion);
+                        Activity?.RunOnUiThread(() =>
                         {
-                            var completion = _completions[position];
-                            await _database.DeleteHabitCompletionAsync(completion);
-                            Activity?.RunOnUiThread(() =>
-                            {
-                                if (Activity != null && position < _completions.Count)
-                                {
-                                    _habits.RemoveAt(position);
-                                    _completions.RemoveAt(position);
-                                    _adapter?.NotifyItemRemoved(position);
-                                }
-                            });
-                        }
+                            if (Activity == null || position >= _completions.Count) return;
+                            _habits.RemoveAt(position);
+                            _completions.RemoveAt(position);
+                            _adapter?.NotifyItemRemoved(position);
+                        });
                     }, async void (position) => { await OnItemClick(position); },
-                    position => position < _completions.Count && _completions[position].CompletedDate.HasValue);
+                    position => position < _completions.Count && _completions[position].CompletedDate.HasValue, Context);
 
                 var itemTouchHelper = new ItemTouchHelper(callback);
                 itemTouchHelper.AttachToRecyclerView(_recyclerView);
@@ -90,7 +85,7 @@ namespace HabitTracker
                 _pickDateButton.Click += (_, _) =>
                 {
                     var builder = MaterialDatePicker.Builder.DatePicker();
-                    builder.SetTitleText("Select Date");
+                    builder.SetTitleText(GetString(ResourceConstant.String.select_date));
 
                     // Convert DateTime to milliseconds for MaterialDatePicker
                     var selection =
@@ -146,41 +141,27 @@ namespace HabitTracker
             return view;
         }
 
-        public void OnDateSet(DatePicker? view, int year, int month, int dayOfMonth)
-        {
-            // This method is now unused, as we are using MaterialDatePicker
-        }
-
         private void UpdateDateText()
         {
-            if (_dateText != null)
-            {
-                _dateText.Text = _selectedDate.ToString("MMMM dd, yyyy");
-            }
+            _dateText?.Text = _selectedDate.ToString("MMMM dd, yyyy");
 
-            if (_dayOfWeekText != null)
-            {
-                _dayOfWeekText.Text = _selectedDate.DayOfWeek.ToString();
-            }
+            _dayOfWeekText?.Text = _selectedDate.DayOfWeek.ToString();
 
             if (_relativeDateText != null)
             {
                 if (_selectedDate.Date == DateTime.Today)
-                    _relativeDateText.Text = "Today";
+                    _relativeDateText.Text = GetString(ResourceConstant.String.today);
                 else if (_selectedDate.Date == DateTime.Today.AddDays(-1))
-                    _relativeDateText.Text = "Yesterday";
+                    _relativeDateText.Text = GetString(ResourceConstant.String.yesterday);
                 else if (_selectedDate.Date == DateTime.Today.AddDays(1))
-                    _relativeDateText.Text = "Tomorrow";
+                    _relativeDateText.Text = GetString(ResourceConstant.String.tomorrow);
                 else
                     _relativeDateText.Text = _selectedDate.ToString("dddd");
             }
 
-            if (_addButton != null)
-            {
-                _addButton.Text = _selectedDate.Date == DateTime.Today
-                    ? "Add to Tracker Today"
-                    : $"Add to Tracker for {_selectedDate:MM-dd}";
-            }
+            _addButton?.Text = _selectedDate.Date == DateTime.Today
+                ? GetString(ResourceConstant.String.add_to_tracker_today)
+                : string.Format(GetString(ResourceConstant.String.add_to_tracker_for), _selectedDate.ToString("MM-dd"));
         }
 
         private async void LoadData()
@@ -240,14 +221,14 @@ namespace HabitTracker
 
             if (availableHabits.Count == 0)
             {
-                Toast.MakeText(Activity, "All habits are already being tracked for this date.", ToastLength.Short)
+                Toast.MakeText(Activity, GetString(ResourceConstant.String.all_habits_tracked_error), ToastLength.Short)
                     ?.Show();
                 return;
             }
 
             var habitNames = availableHabits.Select(h => h.Name).ToArray();
             var builder = new AlertDialog.Builder(Activity);
-            builder.SetTitle("Track a Habit");
+            builder.SetTitle(GetString(ResourceConstant.String.track_a_habit));
             builder.SetItems(habitNames, async void (_, e) =>
             {
                 var selectedHabit = availableHabits[e.Which];
@@ -261,7 +242,7 @@ namespace HabitTracker
                 await _database.SaveHabitCompletionAsync(newCompletion);
                 LoadData();
             });
-            builder.SetNegativeButton("Cancel", (_, _) => { });
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             builder.Show();
         }
 
@@ -356,13 +337,9 @@ namespace HabitTracker
 
         private class TrackerViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
         {
-            public TextView HabitName { get; } =
-                itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
-
+            public TextView HabitName { get; } = itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
             public CheckBox Checkbox { get; } = itemView.FindViewById<CheckBox>(ResourceConstant.Id.tracker_checkbox)!;
-
-            public View ColorIndicator { get; } =
-                itemView.FindViewById<View>(ResourceConstant.Id.tracker_color_indicator)!;
+            public View ColorIndicator { get; } = itemView.FindViewById<View>(ResourceConstant.Id.tracker_color_indicator)!;
         }
     }
 
@@ -375,13 +352,15 @@ namespace HabitTracker
         private readonly Android.Graphics.Paint _completeBackgroundPaint;
         private readonly Android.Graphics.Paint _undoBackgroundPaint;
         private readonly Android.Graphics.Paint _textPaint;
+        private readonly Context? _context;
 
-        public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted)
+        public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted, Context? context)
             : base(0, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
             _onDeleted = onDeleted;
             _onCompleted = onCompleted;
             _isCompleted = isCompleted;
+            _context = context;
             _deleteBackgroundPaint = new Android.Graphics.Paint
             {
                 Color = new Android.Graphics.Color(
@@ -448,7 +427,7 @@ namespace HabitTracker
                     maxDisplacement = -itemView.Width * 0.2f;
                     currentDx = Math.Max(dX, maxDisplacement);
                     backgroundPaint = _deleteBackgroundPaint;
-                    text = "Delete";
+                    text = _context?.GetString(ResourceConstant.String.delete) ?? "Delete";
 
                     var left = itemView.Right + currentDx;
                     var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12,
@@ -478,12 +457,12 @@ namespace HabitTracker
                     if (_isCompleted(viewHolder.BindingAdapterPosition))
                     {
                         backgroundPaint = _undoBackgroundPaint;
-                        text = "Undo";
+                        text = _context?.GetString(ResourceConstant.String.undo) ?? "Undo";
                     }
                     else
                     {
                         backgroundPaint = _completeBackgroundPaint;
-                        text = "Complete";
+                        text = _context?.GetString(ResourceConstant.String.complete) ?? "Complete";
                     }
 
                     var right = itemView.Left + currentDx;

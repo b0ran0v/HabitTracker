@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Daily Tracker"
+        android:text="@string/daily_tracker"
         style="@style/HabitTitle" />
 
     <LinearLayout
@@ -64,7 +64,7 @@
             android:id="@+id/relative_date_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Today"
+            android:text="@string/today"
             android:textSize="14sp"
             android:textColor="@color/textColorSecondary"
             android:layout_marginTop="2dp" />
@@ -73,7 +73,7 @@
             android:id="@+id/pick_date_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Change Date"
+            android:text="@string/change_date"
             android:layout_marginTop="12dp"
             style="@style/SecondaryButton"
             app:icon="@drawable/ic_calendar" />
@@ -93,7 +93,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:text="Yesterday"
+            android:text="@string/yesterday"
             style="@style/SecondaryButton" />
 
         <com.google.android.material.button.MaterialButton
@@ -102,7 +102,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginHorizontal="4dp"
-            android:text="Today"
+            android:text="@string/today"
             style="@style/SecondaryButton" />
 
         <com.google.android.material.button.MaterialButton
@@ -111,7 +111,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="4dp"
-            android:text="Tomorrow"
+            android:text="@string/tomorrow"
             style="@style/SecondaryButton" />
     </LinearLayout>
 
@@ -127,7 +127,7 @@
         android:id="@+id/add_tracked_habit_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add to Tracker Today"
+        android:text="@string/add_to_tracker_today"
         style="@style/ModernButton" />
 
 </LinearLayout>

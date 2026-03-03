@@ -6,4 +6,24 @@
     <string name="settings">Баптаулар</string>
     <string name="change_language">Тілді өзгерту</string>
     <string name="loading_text">Күнделікті әдеттеріңізді қадағалаңыз</string>
+
+    <string name="my_habits">Менің әдеттерім</string>
+    <string name="add_habit">Әдет қосу</string>
+    <string name="delete">Жою</string>
+    <string name="enter_habit_name_error">Әдеттің атын енгізіңіз</string>
+    <string name="add">Қосу</string>
+    <string name="cancel">Болдырмау</string>
+
+    <string name="daily_tracker">Күнделікті трекер</string>
+    <string name="today">Бүгін</string>
+    <string name="yesterday">Кеше</string>
+    <string name="tomorrow">Ертең</string>
+    <string name="add_to_tracker_today">Бүгінгі трекерге қосу</string>
+    <string name="add_to_tracker_for">%1$s күніне трекерге қосу</string>
+    <string name="change_date">Күнді өзгерту</string>
+    <string name="all_habits_tracked_error">Бұл күнге барлық әдеттер қадағалануда.</string>
+    <string name="track_a_habit">Әдетті қадағалау</string>
+    <string name="select_date">Күнді таңдаңыз</string>
+    <string name="undo">Қайтару</string>
+    <string name="complete">Аяқтау</string>
 </resources>
