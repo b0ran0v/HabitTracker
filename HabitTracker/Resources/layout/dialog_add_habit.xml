@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add New Habit"
+        android:text="@string/add_habit"
         android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="@color/textColorPrimary"
@@ -53,7 +53,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_margin="4dp"
-            android:background="@color/habitColor1"
+            android:background="@drawable/color_option_1_bg"
             android:clickable="true"
             android:focusable="true"/>
 
@@ -62,7 +62,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_margin="4dp"
-            android:background="@color/habitColor2"
+            android:background="@drawable/color_option_2_bg"
             android:clickable="true"
             android:focusable="true"/>
 
@@ -71,7 +71,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_margin="4dp"
-            android:background="@color/habitColor3"
+            android:background="@drawable/color_option_3_bg"
             android:clickable="true"
             android:focusable="true"/>
 
@@ -80,7 +80,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_margin="4dp"
-            android:background="@color/habitColor4"
+            android:background="@drawable/color_option_4_bg"
             android:clickable="true"
             android:focusable="true"/>
 
@@ -89,7 +89,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_margin="4dp"
-            android:background="@color/habitColor5"
+            android:background="@drawable/color_option_5_bg"
             android:clickable="true"
             android:focusable="true"/>
 
@@ -98,7 +98,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_margin="4dp"
-            android:background="@color/habitColor6"
+            android:background="@drawable/color_option_6_bg"
             android:clickable="true"
             android:focusable="true"/>
 
