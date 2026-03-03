@@ -19,7 +19,7 @@
     <string name="yesterday">Yesterday</string>
     <string name="tomorrow">Tomorrow</string>
     <string name="add_to_tracker_today">Add to Tracker Today</string>
-    <string name="add_to_tracker_for">Add to Tracker for %1$s</string>
+    <string name="add_to_tracker_for">Add to Tracker for {0}</string>
     <string name="change_date">Change Date</string>
     <string name="all_habits_tracked_error">All habits are already being tracked for this date.</string>
     <string name="track_a_habit">Track a Habit</string>

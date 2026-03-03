@@ -19,7 +19,7 @@
     <string name="yesterday">Вчера</string>
     <string name="tomorrow">Завтра</string>
     <string name="add_to_tracker_today">Добавить в трекер сегодня</string>
-    <string name="add_to_tracker_for">Добавить в трекер на %1$s</string>
+    <string name="add_to_tracker_for">Добавить в трекер на {0}</string>
     <string name="change_date">Изменить дату</string>
     <string name="all_habits_tracked_error">Все привычки уже отслеживаются на эту дату.</string>
     <string name="track_a_habit">Отслеживать привычку</string>

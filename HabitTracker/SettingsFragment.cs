@@ -1,4 +1,5 @@
 ﻿using _Microsoft.Android.Resource.Designer;
+using Android.Content;
 using Android.Views;
 using Google.Android.Material.Button;
 using Java.Util;
@@ -9,7 +10,7 @@ namespace HabitTracker
 {
     public class SettingsFragment : Fragment
     {
-        public override View? OnCreateView(LayoutInflater? inflater, ViewGroup? container, Bundle? savedInstanceState)
+        public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
         {
             var view = inflater?.Inflate(ResourceConstant.Layout.fragment_settings, container, false);
 
@@ -26,8 +27,8 @@ namespace HabitTracker
         {
             if (Activity == null) return;
 
-            var languages = new[] { "English", "Русский", "Қазақша" };
-            var languageCodes = new[] { "en", "ru", "kk" };
+            var languages = new[] { "Қазақша", "English", "Русский" };
+            var languageCodes = new[] { "kk", "en", "ru" };
 
             var builder = new AlertDialog.Builder(Activity);
             builder.SetTitle(GetString(ResourceConstant.String.change_language));
@@ -43,18 +44,22 @@ namespace HabitTracker
         {
             if (Activity == null) return;
 
+            // Save preference
+            var prefs = Activity.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+            var editor = prefs?.Edit();
+            editor?.PutString("app_language", langCode);
+            editor?.Apply();
+
+            // Apply to current context
             var locale = new Locale(langCode);
             Locale.Default = locale;
-            var config = new Android.Content.Res.Configuration
-            {
-                Locale = locale
-            };
+            var config = new Android.Content.Res.Configuration();
+            config.SetLocale(locale);
             Activity.Resources?.UpdateConfiguration(config, Activity.Resources.DisplayMetrics);
 
-            // Restart activity to apply changes
-            var intent = Activity.Intent;
-            if (intent == null) return;
-            Activity.Finish();
+            // Restart activity
+            var intent = new Intent(Activity, typeof(MainActivity));
+            intent.SetFlags(ActivityFlags.NewTask | ActivityFlags.ClearTask);
             StartActivity(intent);
         }
     }

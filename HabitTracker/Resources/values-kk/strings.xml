@@ -19,7 +19,7 @@
     <string name="yesterday">Кеше</string>
     <string name="tomorrow">Ертең</string>
     <string name="add_to_tracker_today">Бүгінгі трекерге қосу</string>
-    <string name="add_to_tracker_for">%1$s күніне трекерге қосу</string>
+    <string name="add_to_tracker_for">{0} күніне трекерге қосу</string>
     <string name="change_date">Күнді өзгерту</string>
     <string name="all_habits_tracked_error">Бұл күнге барлық әдеттер қадағалануда.</string>
     <string name="track_a_habit">Әдетті қадағалау</string>
