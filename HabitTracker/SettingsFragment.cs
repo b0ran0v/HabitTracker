@@ -12,7 +12,7 @@ namespace HabitTracker
     {
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
         {
-            var view = inflater?.Inflate(ResourceConstant.Layout.fragment_settings, container, false);
+            var view = inflater.Inflate(ResourceConstant.Layout.fragment_settings, container, false);
 
             var changeLanguageButton = view?.FindViewById<MaterialButton>(ResourceConstant.Id.change_language_button);
             if (changeLanguageButton != null)
@@ -50,7 +50,7 @@ namespace HabitTracker
             editor?.PutString("app_language", langCode);
             editor?.Apply();
 
-            // Apply to current context
+            // Apply to the current context
             var locale = new Locale(langCode);
             Locale.Default = locale;
             var config = new Android.Content.Res.Configuration();
