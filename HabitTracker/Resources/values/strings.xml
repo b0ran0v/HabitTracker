@@ -26,4 +26,7 @@
     <string name="select_date">Select Date</string>
     <string name="undo">Undo</string>
     <string name="complete">Complete</string>
+    <string name="copy_for_this_week">Copy for this week</string>
+    <string name="habits_created">Habits are created</string>
+    <string name="ok">OK</string>
 </resources>

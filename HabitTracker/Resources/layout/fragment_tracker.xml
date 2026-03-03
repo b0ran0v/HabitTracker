@@ -130,4 +130,12 @@
         android:text="@string/add_to_tracker_today"
         style="@style/ModernButton" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/copy_week_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/copy_for_this_week"
+        style="@style/SecondaryButton"
+        android:layout_marginTop="8dp" />
+
 </LinearLayout>
