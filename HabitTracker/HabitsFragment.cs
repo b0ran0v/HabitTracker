@@ -1,9 +1,11 @@
-﻿using Android.Views;
+﻿using _Microsoft.Android.Resource.Designer;
+using Android.Views;
 using HabitTracker.Data;
 using AndroidX.RecyclerView.Widget;
 using Android.Content;
 using Google.Android.Material.TextField;
 using AlertDialog = Android.App.AlertDialog;
+using Android.Graphics.Drawables;
 
 namespace HabitTracker
 {
@@ -17,17 +19,17 @@ namespace HabitTracker
 
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
         {
-            return inflater.Inflate(Resource.Layout.fragment_habits, container, false);
+            return inflater.Inflate(ResourceConstant.Layout.fragment_habits, container, false);
         }
 
         public override void OnViewCreated(View view, Bundle? savedInstanceState)
         {
             base.OnViewCreated(view, savedInstanceState);
 
-            _recyclerView = view.FindViewById<RecyclerView>(Resource.Id.habits_list);
-            _addButton = view.FindViewById<Button>(Resource.Id.add_habit_button);
+            _recyclerView = view.FindViewById<RecyclerView>(ResourceConstant.Id.habits_list);
+            _addButton = view.FindViewById<Button>(ResourceConstant.Id.add_habit_button);
 
-            var dbPath = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "habits.db");
+            var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "habits.db");
             var dbDir = Path.GetDirectoryName(dbPath);
             if (!string.IsNullOrEmpty(dbDir) && !Directory.Exists(dbDir))
             {
@@ -41,21 +43,17 @@ namespace HabitTracker
                 _adapter = new HabitAdapter(_habits);
                 _recyclerView.SetAdapter(_adapter);
 
-                var callback = new SwipeToDeleteCallback(async (position) =>
+                var callback = new SwipeToDeleteCallback(async void (position) =>
                 {
-                    if (_database != null && position < _habits.Count)
+                    if (_database == null || position >= _habits.Count) return;
+                    var habit = _habits[position];
+                    await _database.DeleteHabitAsync(habit);
+                    Activity?.RunOnUiThread(() =>
                     {
-                        var habit = _habits[position];
-                        await _database.DeleteHabitAsync(habit);
-                        Activity?.RunOnUiThread(() =>
-                        {
-                            if (Activity != null && position < _habits.Count)
-                            {
-                                _habits.RemoveAt(position);
-                                _adapter?.NotifyItemRemoved(position);
-                            }
-                        });
-                    }
+                        if (Activity == null || position >= _habits.Count) return;
+                        _habits.RemoveAt(position);
+                        _adapter?.NotifyItemRemoved(position);
+                    });
                 });
 
                 var itemTouchHelper = new ItemTouchHelper(callback);
@@ -64,7 +62,7 @@ namespace HabitTracker
 
             if (_addButton != null)
             {
-                _addButton.Click += (sender, e) =>
+                _addButton.Click += (_, _) =>
                 {
                     ShowAddHabitDialog();
                 };
@@ -80,14 +78,11 @@ namespace HabitTracker
                 return;
             }
             var habits = await _database.GetHabitsAsync();
-            if (Activity != null)
+            Activity?.RunOnUiThread(() =>
             {
-                Activity.RunOnUiThread(() =>
-                {
-                    _habits = habits;
-                    _adapter?.UpdateHabits(_habits);
-                });
-            }
+                _habits = habits;
+                _adapter?.UpdateHabits(_habits);
+            });
         }
 
         private void ShowAddHabitDialog()
@@ -97,19 +92,19 @@ namespace HabitTracker
                 return;
             }
             
-            var dialogView = LayoutInflater.From(Activity).Inflate(Resource.Layout.dialog_add_habit, null);
-            var input = dialogView?.FindViewById<TextInputEditText>(Resource.Id.habit_name_input);
-            var inputLayout = dialogView?.FindViewById<TextInputLayout>(Resource.Id.habit_name_layout);
+            var dialogView = LayoutInflater.From(Activity)?.Inflate(ResourceConstant.Layout.dialog_add_habit, null);
+            var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
+            var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
             
             var selectedColorHex = "#5C6BC0"; // Default
             var colorOptions = new[]
             {
-                new { Id = Resource.Id.color_option_1, Hex = "#5C6BC0" },
-                new { Id = Resource.Id.color_option_2, Hex = "#66BB6A" },
-                new { Id = Resource.Id.color_option_3, Hex = "#FFA726" },
-                new { Id = Resource.Id.color_option_4, Hex = "#FF5252" },
-                new { Id = Resource.Id.color_option_5, Hex = "#26C6DA" },
-                new { Id = Resource.Id.color_option_6, Hex = "#AB47BC" }
+                new { Id = ResourceConstant.Id.color_option_1, Hex = "#5C6BC0" },
+                new { Id = ResourceConstant.Id.color_option_2, Hex = "#66BB6A" },
+                new { Id = ResourceConstant.Id.color_option_3, Hex = "#FFA726" },
+                new { Id = ResourceConstant.Id.color_option_4, Hex = "#FF5252" },
+                new { Id = ResourceConstant.Id.color_option_5, Hex = "#26C6DA" },
+                new { Id = ResourceConstant.Id.color_option_6, Hex = "#AB47BC" }
             };
 
             var views = new List<View>();
@@ -131,7 +126,7 @@ namespace HabitTracker
                         v.Alpha = 0.6f;
                     }
 
-                    v.Click += (s, e) =>
+                    v.Click += (_, _) =>
                     {
                         selectedColorHex = option.Hex;
                         foreach (var otherV in views)
@@ -157,7 +152,7 @@ namespace HabitTracker
             if (dialog == null) return;
             dialog.Show();
 
-            dialog.GetButton((int)DialogButtonType.Positive)?.Click += async (sender, e) =>
+            dialog.GetButton((int)DialogButtonType.Positive)?.Click += async (_, _) =>
             {
                 var habitName = input?.Text;
                 if (string.IsNullOrWhiteSpace(habitName))
@@ -180,14 +175,9 @@ namespace HabitTracker
         }
     }
 
-    public class HabitAdapter : RecyclerView.Adapter
+    public class HabitAdapter(List<Habit> habits) : RecyclerView.Adapter
     {
-        private List<Habit> _habits;
-
-        public HabitAdapter(List<Habit> habits)
-        {
-            _habits = habits;
-        }
+        private List<Habit> _habits = habits;
 
         public void UpdateHabits(List<Habit> habits)
         {
@@ -201,68 +191,34 @@ namespace HabitTracker
         {
             var habitHolder = (HabitViewHolder)holder;
             var habit = _habits[position];
-            habitHolder.TextView.Text = habit.Name;
+            habitHolder.HabitName.Text = habit.Name;
             
-            // Apply habit color to card background if color is set
+            // Apply habit color to indicator
             if (!string.IsNullOrEmpty(habit.ColorHex))
             {
                 try
                 {
                     var color = Android.Graphics.Color.ParseColor(habit.ColorHex);
-                    habitHolder.Card.SetBackgroundColor(color);
+                    var background = habitHolder.ColorIndicator.Background as GradientDrawable;
+                    background?.SetColor(color);
                 }
                 catch
                 {
-                    habitHolder.Card.SetBackgroundResource(Resource.Drawable.card_background);
+                    // Fallback to the default color if parsing fails
                 }
-            }
-            else
-            {
-                habitHolder.Card.SetBackgroundResource(Resource.Drawable.card_background);
             }
         }
 
         public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
         {
-            var container = new FrameLayout(parent.Context)
-            {
-                LayoutParameters = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
-            };
-            container.SetPadding(24, 12, 24, 12);
-
-            var card = new LinearLayout(parent.Context)
-            {
-                LayoutParameters = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent),
-                Orientation = Orientation.Horizontal,
-                Elevation = 4f
-            };
-            card.SetBackgroundResource(Resource.Drawable.card_background);
-            card.SetPadding(48, 48, 48, 48);
-
-            var textView = new TextView(parent.Context)
-            {
-                LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent),
-                TextSize = 18,
-                Typeface = Android.Graphics.Typeface.Create("sans-serif-medium", Android.Graphics.TypefaceStyle.Normal)
-            };
-            textView.SetTextColor(new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(parent.Context, Resource.Color.textColorPrimary)));
-
-            card.AddView(textView);
-            container.AddView(card);
-
-            return new HabitViewHolder(container, textView, card);
+            var view = LayoutInflater.From(parent.Context)?.Inflate(ResourceConstant.Layout.item_habit, parent, false);
+            return new HabitViewHolder(view!);
         }
 
-        public class HabitViewHolder : RecyclerView.ViewHolder
+        private class HabitViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
         {
-            public TextView TextView { get; }
-            public LinearLayout Card { get; }
-
-            public HabitViewHolder(View itemView, TextView textView, LinearLayout card) : base(itemView)
-            {
-                TextView = textView;
-                Card = card;
-            }
+            public TextView HabitName { get; } = itemView.FindViewById<TextView>(ResourceConstant.Id.habit_name)!;
+            public View ColorIndicator { get; } = itemView.FindViewById<View>(ResourceConstant.Id.habit_color_indicator)!;
         }
     }
 
@@ -275,7 +231,7 @@ namespace HabitTracker
         public SwipeToDeleteCallback(Action<int> onSwiped) : base(0, ItemTouchHelper.Left)
         {
             _onSwiped = onSwiped;
-            _backgroundPaint = new Android.Graphics.Paint { Color = new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(Android.App.Application.Context, Resource.Color.colorDelete)), AntiAlias = true };
+            _backgroundPaint = new Android.Graphics.Paint { Color = new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorDelete)), AntiAlias = true };
             _textPaint = new Android.Graphics.Paint
             {
                 Color = Android.Graphics.Color.White,
@@ -292,7 +248,7 @@ namespace HabitTracker
 
         public override void OnSwiped(RecyclerView.ViewHolder viewHolder, int direction)
         {
-            _onSwiped(viewHolder.AdapterPosition);
+            _onSwiped(viewHolder.BindingAdapterPosition);
         }
 
         public override void OnChildDraw(Android.Graphics.Canvas c, RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, bool isCurrentlyActive)
@@ -306,7 +262,7 @@ namespace HabitTracker
                 var backgroundWidth = Math.Abs(currentDx);
                 var left = itemView.Right + currentDx;
                 
-                // Draw rounded rectangle background
+                // Draw a rounded rectangle background
                 var cornerRadius = 24f;
                 var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12, itemView.Right - 24, itemView.Bottom - 12);
                 c.DrawRoundRect(background, cornerRadius, cornerRadius, _backgroundPaint);
@@ -315,10 +271,15 @@ namespace HabitTracker
                 var textBounds = new Android.Graphics.Rect();
                 _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
                 
+                // Clip the text to the background bounds
+                c.Save();
+                c.ClipRect(background);
+
                 var textX = left + backgroundWidth / 2f - 12;
                 var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
 
                 c.DrawText(text, textX, textY, _textPaint);
+                c.Restore();
 
                 base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
             }

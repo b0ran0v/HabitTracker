@@ -12,6 +12,7 @@
     <!-- Text Colors -->
     <color name="textColorPrimary">#1A1A1A</color>
     <color name="textColorSecondary">#757575</color>
+    <color name="dividerColor">#E0E0E0</color>
     
     <!-- Status Colors -->
     <color name="colorComplete">#4CAF50</color>

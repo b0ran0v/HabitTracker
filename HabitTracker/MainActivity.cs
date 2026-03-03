@@ -1,44 +1,46 @@
+using _Microsoft.Android.Resource.Designer;
+using Android.Views;
 using AndroidX.AppCompat.App;
 using Google.Android.Material.BottomNavigation;
+using Google.Android.Material.Navigation;
 
 namespace HabitTracker;
 
 [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
-[Obsolete("Obsolete")]
-public class MainActivity : AppCompatActivity, BottomNavigationView.IOnNavigationItemSelectedListener
+public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelectedListener
 {
     private BottomNavigationView? _navigation;
+
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        SetContentView(Resource.Layout.activity_main);
+        SetContentView(ResourceConstant.Layout.activity_main);
 
-        _navigation = FindViewById<BottomNavigationView>(Resource.Id.bottom_navigation);
+        _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
         if (_navigation != null)
         {
-            _navigation.SetOnNavigationItemSelectedListener(this);
+            _navigation.SetOnItemSelectedListener(this);
             
             if (savedInstanceState == null)
             {
                 LoadFragment(new TrackerFragment());
-                _navigation.SelectedItemId = Resource.Id.navigation_tracker;
+                _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
             }
         }
     }
 
-    public bool OnNavigationItemSelected(Android.Views.IMenuItem item)
+    public bool OnNavigationItemSelected(IMenuItem item)
     {
-        if (item.ItemId == (_navigation?.SelectedItemId ?? -1))
+        AndroidX.Fragment.App.Fragment? fragment = null;
+        
+        if (item.ItemId == ResourceConstant.Id.navigation_habits)
         {
-            return true;
+            fragment = new HabitsFragment();
         }
-
-        AndroidX.Fragment.App.Fragment? fragment = item.ItemId switch
+        else if (item.ItemId == ResourceConstant.Id.navigation_tracker)
         {
-            Resource.Id.navigation_habits => new HabitsFragment(),
-            Resource.Id.navigation_tracker => new TrackerFragment(),
-            _ => null
-        };
+            fragment = new TrackerFragment();
+        }
 
         return LoadFragment(fragment);
     }
@@ -46,8 +48,9 @@ public class MainActivity : AppCompatActivity, BottomNavigationView.IOnNavigatio
     private bool LoadFragment(AndroidX.Fragment.App.Fragment? fragment)
     {
         if (fragment == null) return false;
+
         var transaction = SupportFragmentManager.BeginTransaction();
-        transaction.Replace(Resource.Id.fragment_container, fragment);
+        transaction.Replace(ResourceConstant.Id.fragment_container, fragment);
         transaction.Commit();
         return true;
     }
