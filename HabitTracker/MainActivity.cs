@@ -1,12 +1,14 @@
 using _Microsoft.Android.Resource.Designer;
+using Android.App;
 using Android.Views;
 using AndroidX.AppCompat.App;
 using Google.Android.Material.BottomNavigation;
 using Google.Android.Material.Navigation;
+using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker;
 
-[Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
+[Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = false)]
 public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelectedListener
 {
     private BottomNavigationView? _navigation;
@@ -17,35 +19,28 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         SetContentView(ResourceConstant.Layout.activity_main);
 
         _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
-        if (_navigation != null)
-        {
-            _navigation.SetOnItemSelectedListener(this);
-            
-            if (savedInstanceState == null)
-            {
-                LoadFragment(new TrackerFragment());
-                _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
-            }
-        }
+        if (_navigation == null) return;
+        _navigation.SetOnItemSelectedListener(this);
+
+        if (savedInstanceState != null) return;
+        LoadFragment(new TrackerFragment());
+        _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
     }
 
     public bool OnNavigationItemSelected(IMenuItem item)
     {
-        AndroidX.Fragment.App.Fragment? fragment = null;
-        
-        if (item.ItemId == ResourceConstant.Id.navigation_habits)
+        Fragment? fragment = item.ItemId switch
         {
-            fragment = new HabitsFragment();
-        }
-        else if (item.ItemId == ResourceConstant.Id.navigation_tracker)
-        {
-            fragment = new TrackerFragment();
-        }
+            ResourceConstant.Id.navigation_habits => new HabitsFragment(),
+            ResourceConstant.Id.navigation_tracker => new TrackerFragment(),
+            ResourceConstant.Id.navigation_settings => new SettingsFragment(),
+            _ => null
+        };
 
         return LoadFragment(fragment);
     }
 
-    private bool LoadFragment(AndroidX.Fragment.App.Fragment? fragment)
+    private bool LoadFragment(Fragment? fragment)
     {
         if (fragment == null) return false;
 

@@ -1,0 +1,9 @@
+﻿<resources>
+    <string name="app_name">HabitTracker</string>
+    <string name="action_settings">Настройки</string>
+    <string name="habits">Привычки</string>
+    <string name="tracker">Трекер</string>
+    <string name="settings">Настройки</string>
+    <string name="change_language">Сменить язык</string>
+    <string name="loading_text">Отслеживайте свои ежедневные привычки</string>
+</resources>

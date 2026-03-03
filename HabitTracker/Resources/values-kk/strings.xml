@@ -1,0 +1,9 @@
+﻿<resources>
+    <string name="app_name">HabitTracker</string>
+    <string name="action_settings">Баптаулар</string>
+    <string name="habits">Әдеттер</string>
+    <string name="tracker">Трекер</string>
+    <string name="settings">Баптаулар</string>
+    <string name="change_language">Тілді өзгерту</string>
+    <string name="loading_text">Күнделікті әдеттеріңізді қадағалаңыз</string>
+</resources>
