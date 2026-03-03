@@ -1,0 +1,28 @@
+﻿
+<resources>
+    <!-- Primary Color - Modern Indigo -->
+    <color name="colorPrimary">#9FA8DA</color> <!-- Lighter for dark theme -->
+    <color name="colorPrimaryDark">#3F51B5</color>
+    <color name="colorAccent">#FF80AB</color>
+    
+    <!-- Background and Surface Colors -->
+    <color name="backgroundColor">#121212</color>
+    <color name="surfaceColor">#1E1E1E</color>
+    
+    <!-- Text Colors -->
+    <color name="textColorPrimary">#E1E1E1</color>
+    <color name="textColorSecondary">#B0B0B0</color>
+    
+    <!-- Status Colors -->
+    <color name="colorComplete">#81C784</color>
+    <color name="colorUndo">#FFB74D</color>
+    <color name="colorDelete">#E57373</color>
+
+    <!-- Habit Colors (Same for dark theme unless they need to be more muted) -->
+    <color name="habitColor1">#9FA8DA</color> <!-- Indigo Lighter -->
+    <color name="habitColor2">#81C784</color> <!-- Green Lighter -->
+    <color name="habitColor3">#FFB74D</color> <!-- Orange Lighter -->
+    <color name="habitColor4">#E57373</color> <!-- Red Lighter -->
+    <color name="habitColor5">#4DD0E1</color> <!-- Cyan Lighter -->
+    <color name="habitColor6">#CE93D8</color> <!-- Purple Lighter -->
+</resources>

@@ -1,0 +1,31 @@
+﻿
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/backgroundColor"
+    android:fitsSystemWindows="true">
+
+    <TextView
+        android:id="@+id/habits_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="My Habits"
+        style="@style/HabitTitle" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/habits_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp"
+        android:clipToPadding="false" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/add_habit_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Habit"
+        style="@style/ModernButton" />
+
+</LinearLayout>

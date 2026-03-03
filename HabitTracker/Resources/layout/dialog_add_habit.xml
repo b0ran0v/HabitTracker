@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add New Habit"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/textColorPrimary"
+        android:layout_marginBottom="16dp"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/habit_name_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Habit Name"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/habit_name_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textCapSentences"
+            android:maxLines="1" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose Color"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/textColorPrimary"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="12dp"/>
+
+    <LinearLayout
+        android:id="@+id/color_selection_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <View
+            android:id="@+id/color_option_1"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@color/habitColor1"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <View
+            android:id="@+id/color_option_2"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@color/habitColor2"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <View
+            android:id="@+id/color_option_3"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@color/habitColor3"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <View
+            android:id="@+id/color_option_4"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@color/habitColor4"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <View
+            android:id="@+id/color_option_5"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@color/habitColor5"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <View
+            android:id="@+id/color_option_6"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@color/habitColor6"
+            android:clickable="true"
+            android:focusable="true"/>
+
+    </LinearLayout>
+
+</LinearLayout>
