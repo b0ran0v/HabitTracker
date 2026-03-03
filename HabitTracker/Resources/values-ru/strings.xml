@@ -6,4 +6,24 @@
     <string name="settings">Настройки</string>
     <string name="change_language">Сменить язык</string>
     <string name="loading_text">Отслеживайте свои ежедневные привычки</string>
+
+    <string name="my_habits">Мои привычки</string>
+    <string name="add_habit">Добавить привычку</string>
+    <string name="delete">Удалить</string>
+    <string name="enter_habit_name_error">Пожалуйста, введите название привычки</string>
+    <string name="add">Добавить</string>
+    <string name="cancel">Отмена</string>
+
+    <string name="daily_tracker">Ежедневный трекер</string>
+    <string name="today">Сегодня</string>
+    <string name="yesterday">Вчера</string>
+    <string name="tomorrow">Завтра</string>
+    <string name="add_to_tracker_today">Добавить в трекер сегодня</string>
+    <string name="add_to_tracker_for">Добавить в трекер на %1$s</string>
+    <string name="change_date">Изменить дату</string>
+    <string name="all_habits_tracked_error">Все привычки уже отслеживаются на эту дату.</string>
+    <string name="track_a_habit">Отслеживать привычку</string>
+    <string name="select_date">Выберите дату</string>
+    <string name="undo">Отменить</string>
+    <string name="complete">Завершить</string>
 </resources>

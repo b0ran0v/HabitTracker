@@ -10,7 +10,7 @@
         android:id="@+id/habits_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="My Habits"
+        android:text="@string/my_habits"
         style="@style/HabitTitle" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -25,7 +25,7 @@
         android:id="@+id/add_habit_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add Habit"
+        android:text="@string/add_habit"
         style="@style/ModernButton" />
 
 </LinearLayout>
