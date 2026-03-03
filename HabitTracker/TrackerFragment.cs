@@ -1,13 +1,16 @@
 ﻿using _Microsoft.Android.Resource.Designer;
+using Android.App;
 using Android.Views;
 using Google.Android.Material.DatePicker;
 using AndroidX.RecyclerView.Widget;
 using HabitTracker.Data;
 using Android.Graphics.Drawables;
+using AlertDialog = AndroidX.AppCompat.App.AlertDialog;
+using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker
 {
-    public class TrackerFragment : AndroidX.Fragment.App.Fragment
+    public class TrackerFragment : Fragment
     {
         private RecyclerView? _recyclerView;
         private Button? _addButton;
@@ -44,40 +47,34 @@ namespace HabitTracker
             {
                 Directory.CreateDirectory(dbDir);
             }
+
             _database = new Database(dbPath);
 
             if (_recyclerView != null)
             {
                 _recyclerView.SetLayoutManager(new LinearLayoutManager(Activity));
-                _adapter = new TrackerAdapter(_habits, _completions, async void (position) =>
-                {
-                    await OnItemClick(position);
-                }, () => _selectedDate);
+                _adapter = new TrackerAdapter(_habits, _completions,
+                    async void (position) => { await OnItemClick(position); }, () => _selectedDate);
                 _recyclerView.SetAdapter(_adapter);
 
                 var callback = new TrackerSwipeCallback(async void (position) =>
-                {
-                    if (_database != null && position < _completions.Count)
                     {
-                        var completion = _completions[position];
-                        await _database.DeleteHabitCompletionAsync(completion);
-                        Activity?.RunOnUiThread(() =>
+                        if (_database != null && position < _completions.Count)
                         {
-                            if (Activity != null && position < _completions.Count)
+                            var completion = _completions[position];
+                            await _database.DeleteHabitCompletionAsync(completion);
+                            Activity?.RunOnUiThread(() =>
                             {
-                                _habits.RemoveAt(position);
-                                _completions.RemoveAt(position);
-                                _adapter?.NotifyItemRemoved(position);
-                            }
-                        });
-                    }
-                }, async void (position) =>
-                {
-                    await OnItemClick(position);
-                }, (position) => 
-                {
-                    return position < _completions.Count && _completions[position].CompletedDate.HasValue;
-                });
+                                if (Activity != null && position < _completions.Count)
+                                {
+                                    _habits.RemoveAt(position);
+                                    _completions.RemoveAt(position);
+                                    _adapter?.NotifyItemRemoved(position);
+                                }
+                            });
+                        }
+                    }, async void (position) => { await OnItemClick(position); },
+                    position => position < _completions.Count && _completions[position].CompletedDate.HasValue);
 
                 var itemTouchHelper = new ItemTouchHelper(callback);
                 itemTouchHelper.AttachToRecyclerView(_recyclerView);
@@ -85,10 +82,7 @@ namespace HabitTracker
 
             if (_addButton != null)
             {
-                _addButton.Click += (_, _) =>
-                {
-                    ShowAddTrackedHabitDialog();
-                };
+                _addButton.Click += (_, _) => { ShowAddTrackedHabitDialog(); };
             }
 
             if (_pickDateButton != null)
@@ -97,9 +91,11 @@ namespace HabitTracker
                 {
                     var builder = MaterialDatePicker.Builder.DatePicker();
                     builder.SetTitleText("Select Date");
-                    
+
                     // Convert DateTime to milliseconds for MaterialDatePicker
-                    var selection = (long)(_selectedDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+                    var selection =
+                        (long)(_selectedDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                        .TotalMilliseconds;
                     builder.SetSelection(Java.Lang.Long.ValueOf(selection));
 
                     var picker = builder.Build();
@@ -161,10 +157,12 @@ namespace HabitTracker
             {
                 _dateText.Text = _selectedDate.ToString("MMMM dd, yyyy");
             }
+
             if (_dayOfWeekText != null)
             {
                 _dayOfWeekText.Text = _selectedDate.DayOfWeek.ToString();
             }
+
             if (_relativeDateText != null)
             {
                 if (_selectedDate.Date == DateTime.Today)
@@ -176,9 +174,12 @@ namespace HabitTracker
                 else
                     _relativeDateText.Text = _selectedDate.ToString("dddd");
             }
+
             if (_addButton != null)
             {
-                _addButton.Text = _selectedDate.Date == DateTime.Today ? "Add to Tracker Today" : $"Add to Tracker for {_selectedDate:MM-dd}";
+                _addButton.Text = _selectedDate.Date == DateTime.Today
+                    ? "Add to Tracker Today"
+                    : $"Add to Tracker for {_selectedDate:MM-dd}";
             }
         }
 
@@ -188,7 +189,7 @@ namespace HabitTracker
 
             var completions = await _database.GetHabitCompletionsForDateAsync(_selectedDate);
             var allHabits = await _database.GetHabitsAsync();
-            
+
             // Map completions back to habits and sort by completion status
             var pairedData = completions
                 .Select(c => new { Completion = c, Habit = allHabits.FirstOrDefault(h => h.Id == c.HabitId) })
@@ -222,7 +223,7 @@ namespace HabitTracker
             {
                 completion.CompletedDate = DateTime.Now;
             }
-            
+
             await _database.UpdateHabitCompletionAsync(completion);
             LoadData();
         }
@@ -232,14 +233,15 @@ namespace HabitTracker
             if (Activity == null || _database == null) return;
 
             var allHabits = await _database.GetHabitsAsync();
-            
+
             // Exclude habits already tracked on the selected date
             var alreadyTrackedIds = _completions.Select(c => c.HabitId).ToList();
             var availableHabits = allHabits.Where(h => !alreadyTrackedIds.Contains(h.Id)).ToList();
 
-            if (!availableHabits.Any())
+            if (availableHabits.Count == 0)
             {
-                Toast.MakeText(Activity, "All habits are already being tracked for this date.", ToastLength.Short)?.Show();
+                Toast.MakeText(Activity, "All habits are already being tracked for this date.", ToastLength.Short)
+                    ?.Show();
                 return;
             }
 
@@ -290,7 +292,8 @@ namespace HabitTracker
             var trackerHolder = (TrackerViewHolder)holder;
             var habit = habits[position];
             var date = getDate().Date;
-            var isCompleted = completions.Any(c => c.HabitId == habit.Id && c.CompletedDate.HasValue && c.CompletedDate.Value.Date == date);
+            var isCompleted = completions.Any(c =>
+                c.HabitId == habit.Id && c.CompletedDate.HasValue && c.CompletedDate.Value.Date == date);
 
             trackerHolder.HabitName.Text = habit.Name;
             trackerHolder.Checkbox.Checked = isCompleted;
@@ -314,7 +317,7 @@ namespace HabitTracker
                     var color = Android.Graphics.Color.ParseColor(habit.ColorHex);
                     var background = trackerHolder.ColorIndicator.Background as GradientDrawable;
                     background?.SetColor(color);
-                    
+
                     // Also tint the checkbox
                     trackerHolder.Checkbox.ButtonTintList = Android.Content.Res.ColorStateList.ValueOf(color);
                 }
@@ -327,9 +330,10 @@ namespace HabitTracker
 
         public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
         {
-            var view = LayoutInflater.From(parent.Context)?.Inflate(ResourceConstant.Layout.item_tracker_habit, parent, false);
+            var view = LayoutInflater.From(parent.Context)
+                ?.Inflate(ResourceConstant.Layout.item_tracker_habit, parent, false);
             var holder = new TrackerViewHolder(view!);
-            
+
             view!.Click += (_, _) =>
             {
                 if (holder.BindingAdapterPosition != RecyclerView.NoPosition)
@@ -337,7 +341,7 @@ namespace HabitTracker
                     onItemClick(holder.BindingAdapterPosition);
                 }
             };
-            
+
             // Also handle checkbox clicks
             holder.Checkbox.Click += (_, _) =>
             {
@@ -352,11 +356,16 @@ namespace HabitTracker
 
         private class TrackerViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
         {
-            public TextView HabitName { get; } = itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
+            public TextView HabitName { get; } =
+                itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
+
             public CheckBox Checkbox { get; } = itemView.FindViewById<CheckBox>(ResourceConstant.Id.tracker_checkbox)!;
-            public View ColorIndicator { get; } = itemView.FindViewById<View>(ResourceConstant.Id.tracker_color_indicator)!;
+
+            public View ColorIndicator { get; } =
+                itemView.FindViewById<View>(ResourceConstant.Id.tracker_color_indicator)!;
         }
     }
+
     public class TrackerSwipeCallback : ItemTouchHelper.SimpleCallback
     {
         private readonly Action<int> _onDeleted;
@@ -367,15 +376,33 @@ namespace HabitTracker
         private readonly Android.Graphics.Paint _undoBackgroundPaint;
         private readonly Android.Graphics.Paint _textPaint;
 
-        public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted) 
+        public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted)
             : base(0, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
             _onDeleted = onDeleted;
             _onCompleted = onCompleted;
             _isCompleted = isCompleted;
-            _deleteBackgroundPaint = new Android.Graphics.Paint { Color = new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorDelete)), AntiAlias = true };
-            _completeBackgroundPaint = new Android.Graphics.Paint { Color = new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorComplete)), AntiAlias = true };
-            _undoBackgroundPaint = new Android.Graphics.Paint { Color = new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorUndo)), AntiAlias = true };
+            _deleteBackgroundPaint = new Android.Graphics.Paint
+            {
+                Color = new Android.Graphics.Color(
+                    AndroidX.Core.Content.ContextCompat.GetColor(Application.Context,
+                        ResourceConstant.Color.colorDelete)),
+                AntiAlias = true
+            };
+            _completeBackgroundPaint = new Android.Graphics.Paint
+            {
+                Color = new Android.Graphics.Color(
+                    AndroidX.Core.Content.ContextCompat.GetColor(Application.Context,
+                        ResourceConstant.Color.colorComplete)),
+                AntiAlias = true
+            };
+            _undoBackgroundPaint = new Android.Graphics.Paint
+            {
+                Color = new Android.Graphics.Color(
+                    AndroidX.Core.Content.ContextCompat.GetColor(Application.Context,
+                        ResourceConstant.Color.colorUndo)),
+                AntiAlias = true
+            };
             _textPaint = new Android.Graphics.Paint
             {
                 Color = Android.Graphics.Color.White,
@@ -383,10 +410,12 @@ namespace HabitTracker
                 TextAlign = Android.Graphics.Paint.Align.Center,
                 AntiAlias = true
             };
-            _textPaint.SetTypeface(Android.Graphics.Typeface.Create("sans-serif-medium", Android.Graphics.TypefaceStyle.Normal));
+            _textPaint.SetTypeface(Android.Graphics.Typeface.Create("sans-serif-medium",
+                Android.Graphics.TypefaceStyle.Normal));
         }
 
-        public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) => false;
+        public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder,
+            RecyclerView.ViewHolder target) => false;
 
         public override float GetSwipeThreshold(RecyclerView.ViewHolder viewHolder) => 0.2f;
 
@@ -402,7 +431,8 @@ namespace HabitTracker
             }
         }
 
-        public override void OnChildDraw(Android.Graphics.Canvas c, RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, bool isCurrentlyActive)
+        public override void OnChildDraw(Android.Graphics.Canvas c, RecyclerView recyclerView,
+            RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, bool isCurrentlyActive)
         {
             if (actionState == ItemTouchHelper.ActionStateSwipe)
             {
@@ -421,12 +451,13 @@ namespace HabitTracker
                     text = "Delete";
 
                     var left = itemView.Right + currentDx;
-                    var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12, itemView.Right - 24, itemView.Bottom - 12);
+                    var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12,
+                        itemView.Right - 24, itemView.Bottom - 12);
                     c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
 
                     var textBounds = new Android.Graphics.Rect();
                     _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
-                    
+
                     // Clip text
                     c.Save();
                     c.ClipRect(background);
@@ -434,7 +465,7 @@ namespace HabitTracker
                     var textX = left + Math.Abs(currentDx) / 2f - 12;
                     var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
                     c.DrawText(text, textX, textY, _textPaint);
-                    
+
                     c.Restore();
 
                     base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
@@ -443,7 +474,7 @@ namespace HabitTracker
                 {
                     maxDisplacement = itemView.Width * 0.2f;
                     currentDx = Math.Min(dX, maxDisplacement);
-                    
+
                     if (_isCompleted(viewHolder.BindingAdapterPosition))
                     {
                         backgroundPaint = _undoBackgroundPaint;
@@ -456,12 +487,13 @@ namespace HabitTracker
                     }
 
                     var right = itemView.Left + currentDx;
-                    var background = new Android.Graphics.RectF(itemView.Left + 24, itemView.Top + 12, right + cornerRadius, itemView.Bottom - 12);
+                    var background = new Android.Graphics.RectF(itemView.Left + 24, itemView.Top + 12,
+                        right + cornerRadius, itemView.Bottom - 12);
                     c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
 
                     var textBounds = new Android.Graphics.Rect();
                     _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
-                    
+
                     // Clip text
                     c.Save();
                     c.ClipRect(background);
@@ -469,7 +501,7 @@ namespace HabitTracker
                     var textX = itemView.Left + currentDx / 2f + 12;
                     var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
                     c.DrawText(text, textX, textY, _textPaint);
-                    
+
                     c.Restore();
 
                     base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
