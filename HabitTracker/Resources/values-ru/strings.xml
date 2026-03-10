@@ -29,4 +29,5 @@
     <string name="copy_for_this_week">Копировать на эту неделю</string>
     <string name="habits_created">Привычки созданы</string>
     <string name="ok">ОК</string>
+    <string name="add_all_activities">Добавить все</string>
 </resources>

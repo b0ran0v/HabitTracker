@@ -72,7 +72,8 @@ namespace HabitTracker
                             _adapter?.NotifyItemRemoved(position);
                         });
                     }, async void (position) => { await OnItemClick(position); },
-                    position => position < _completions.Count && _completions[position].CompletedDate.HasValue, Context);
+                    position => position < _completions.Count && _completions[position].CompletedDate.HasValue,
+                    Context);
 
                 var itemTouchHelper = new ItemTouchHelper(callback);
                 itemTouchHelper.AttachToRecyclerView(_recyclerView);
@@ -250,6 +251,22 @@ namespace HabitTracker
                 await _database.SaveHabitCompletionAsync(newCompletion);
                 LoadData();
             });
+            builder.SetNeutralButton(GetString(ResourceConstant.String.add_all_activities), async void (_, _) =>
+            {
+                foreach (var habit in availableHabits)
+                {
+                    var newCompletion = new HabitCompletion
+                    {
+                        HabitId = habit.Id,
+                        CreatedDate = DateTime.Now,
+                        DueDate = _selectedDate.Date,
+                        CompletedDate = null
+                    };
+                    await _database.SaveHabitCompletionAsync(newCompletion);
+                }
+
+                LoadData();
+            });
             builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             builder.Show();
         }
@@ -266,30 +283,28 @@ namespace HabitTracker
             var currentDayOfWeek = (int)_selectedDate.DayOfWeek;
             var daysToSubtract = (currentDayOfWeek == 0) ? 6 : currentDayOfWeek - 1; // Adjust for Sunday being 0
             var startOfWeek = _selectedDate.AddDays(-daysToSubtract).Date;
-            
-            for (int i = 0; i < 7; i++)
+
+            for (var i = 0; i < 7; i++)
             {
                 var targetDate = startOfWeek.AddDays(i);
-                
-                // Skip if target date is the same as the source date (already have habits)
+
+                // Skip if the target date is the same as the source date (already have habits)
                 if (targetDate == _selectedDate.Date) continue;
 
                 var existingCompletions = await _database.GetHabitCompletionsForDateAsync(targetDate);
                 var existingHabitIds = existingCompletions.Select(c => c.HabitId).ToList();
 
-                foreach (var completion in currentCompletions)
+                foreach (var newCompletion in from completion in currentCompletions
+                         where !existingHabitIds.Contains(completion.HabitId)
+                         select new HabitCompletion
+                         {
+                             HabitId = completion.HabitId,
+                             CreatedDate = DateTime.Now,
+                             DueDate = targetDate,
+                             CompletedDate = null
+                         })
                 {
-                    if (!existingHabitIds.Contains(completion.HabitId))
-                    {
-                        var newCompletion = new HabitCompletion
-                        {
-                            HabitId = completion.HabitId,
-                            CreatedDate = DateTime.Now,
-                            DueDate = targetDate,
-                            CompletedDate = null
-                        };
-                        await _database.SaveHabitCompletionAsync(newCompletion);
-                    }
+                    await _database.SaveHabitCompletionAsync(newCompletion);
                 }
             }
 
@@ -325,7 +340,8 @@ namespace HabitTracker
         private readonly Action<int> _onItemClick;
         private readonly Func<DateTime> _getDate;
 
-        public TrackerAdapter(List<Habit> habits, List<HabitCompletion> completions, Action<int> onItemClick, Func<DateTime> getDate)
+        public TrackerAdapter(List<Habit> habits, List<HabitCompletion> completions, Action<int> onItemClick,
+            Func<DateTime> getDate)
         {
             _habits = habits;
             _completions = completions;
@@ -404,9 +420,13 @@ namespace HabitTracker
 
         private class TrackerViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
         {
-            public TextView HabitName { get; } = itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
+            public TextView HabitName { get; } =
+                itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
+
             public CheckBox Checkbox { get; } = itemView.FindViewById<CheckBox>(ResourceConstant.Id.tracker_checkbox)!;
-            public View ColorIndicator { get; } = itemView.FindViewById<View>(ResourceConstant.Id.tracker_color_indicator)!;
+
+            public View ColorIndicator { get; } =
+                itemView.FindViewById<View>(ResourceConstant.Id.tracker_color_indicator)!;
         }
     }
 
@@ -421,7 +441,8 @@ namespace HabitTracker
         private readonly Android.Graphics.Paint _textPaint;
         private readonly Context? _context;
 
-        public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted, Context? context)
+        public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted,
+            Context? context)
             : base(0, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
             _onDeleted = onDeleted;
