@@ -30,6 +30,15 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         base.AttachBaseContext(@base.CreateConfigurationContext(config));
     }
 
+    public override void ApplyOverrideConfiguration(Android.Content.Res.Configuration overrideConfiguration)
+    {
+        var prefs = GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+        var lang = prefs?.GetString("app_language", null);
+        if (lang != null)
+            overrideConfiguration.SetLocale(new Locale(lang));
+        base.ApplyOverrideConfiguration(overrideConfiguration);
+    }
+
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);

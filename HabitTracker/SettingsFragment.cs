@@ -44,13 +44,9 @@ namespace HabitTracker
             if (Activity == null) return;
 
             var prefs = Activity.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
-            var editor = prefs?.Edit();
-            editor?.PutString("app_language", langCode);
-            editor?.Commit();
+            prefs?.Edit()?.PutString("app_language", langCode)?.Commit();
 
-            var intent = new Intent(Activity, typeof(MainActivity));
-            intent.SetFlags(ActivityFlags.NewTask | ActivityFlags.ClearTask);
-            StartActivity(intent);
+            Activity.Recreate();
         }
     }
 }
