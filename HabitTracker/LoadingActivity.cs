@@ -10,8 +10,13 @@ namespace HabitTracker
     [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true, NoHistory = true)]
     public class LoadingActivity : AppCompatActivity
     {
-        protected override void AttachBaseContext(Context @base)
+        protected override void AttachBaseContext(Context? @base)
         {
+            if (@base == null)
+            {
+                base.AttachBaseContext(@base);
+                return;
+            }
             var prefs = @base.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
             var lang = prefs?.GetString("app_language", null);
             if (lang == null)
@@ -19,7 +24,7 @@ namespace HabitTracker
                 base.AttachBaseContext(@base);
                 return;
             }
-            var locale = new Locale(lang);
+            var locale = Locale.ForLanguageTag(lang)!;
             Locale.Default = locale;
             var config = new Android.Content.Res.Configuration(@base.Resources!.Configuration);
             config.SetLocale(locale);

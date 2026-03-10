@@ -14,8 +14,13 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
 {
     private BottomNavigationView? _navigation;
 
-    protected override void AttachBaseContext(Context @base)
+    protected override void AttachBaseContext(Context? @base)
     {
+        if (@base == null)
+        {
+            base.AttachBaseContext(@base);
+            return;
+        }
         var prefs = @base.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
         var lang = prefs?.GetString("app_language", null);
         if (lang == null)
@@ -23,19 +28,22 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
             base.AttachBaseContext(@base);
             return;
         }
-        var locale = new Locale(lang);
+        var locale = Locale.ForLanguageTag(lang)!;
         Locale.Default = locale;
         var config = new Android.Content.Res.Configuration(@base.Resources!.Configuration);
         config.SetLocale(locale);
         base.AttachBaseContext(@base.CreateConfigurationContext(config));
     }
 
-    public override void ApplyOverrideConfiguration(Android.Content.Res.Configuration overrideConfiguration)
+    public override void ApplyOverrideConfiguration(Android.Content.Res.Configuration? overrideConfiguration)
     {
-        var prefs = GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
-        var lang = prefs?.GetString("app_language", null);
-        if (lang != null)
-            overrideConfiguration.SetLocale(new Locale(lang));
+        if (overrideConfiguration != null)
+        {
+            var prefs = GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+            var lang = prefs?.GetString("app_language", null);
+            if (lang != null)
+                overrideConfiguration.SetLocale(Locale.ForLanguageTag(lang));
+        }
         base.ApplyOverrideConfiguration(overrideConfiguration);
     }
 
