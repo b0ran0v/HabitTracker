@@ -1,9 +1,10 @@
 using _Microsoft.Android.Resource.Designer;
-using Android.App;
+using Android.Content;
 using Android.Views;
 using AndroidX.AppCompat.App;
 using Google.Android.Material.BottomNavigation;
 using Google.Android.Material.Navigation;
+using Java.Util;
 using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker;
@@ -12,6 +13,22 @@ namespace HabitTracker;
 public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelectedListener
 {
     private BottomNavigationView? _navigation;
+
+    protected override void AttachBaseContext(Context @base)
+    {
+        var prefs = @base.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+        var lang = prefs?.GetString("app_language", null);
+        if (lang == null)
+        {
+            base.AttachBaseContext(@base);
+            return;
+        }
+        var locale = new Locale(lang);
+        Locale.Default = locale;
+        var config = new Android.Content.Res.Configuration(@base.Resources!.Configuration);
+        config.SetLocale(locale);
+        base.AttachBaseContext(@base.CreateConfigurationContext(config));
+    }
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {

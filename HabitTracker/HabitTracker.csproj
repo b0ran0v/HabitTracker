@@ -13,6 +13,7 @@
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
       <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
       <AndroidMaxPageSize>0x4000</AndroidMaxPageSize>
+      <AndroidLinkMode>SdkOnly</AndroidLinkMode>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
