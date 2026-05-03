@@ -275,8 +275,20 @@ namespace HabitTracker
 
         public void UpdateHabits(List<Habit> habits)
         {
+            var diff = DiffUtil.CalculateDiff(new HabitDiffCallback(_habits, habits));
             _habits = habits;
-            NotifyDataSetChanged();
+            diff.DispatchUpdatesTo(this);
+        }
+
+        private class HabitDiffCallback(List<Habit> oldList, List<Habit> newList) : DiffUtil.Callback
+        {
+            public override int OldListSize => oldList.Count;
+            public override int NewListSize => newList.Count;
+            public override bool AreItemsTheSame(int oldPos, int newPos) =>
+                oldList[oldPos].Id == newList[newPos].Id;
+            public override bool AreContentsTheSame(int oldPos, int newPos) =>
+                oldList[oldPos].Name == newList[newPos].Name &&
+                oldList[oldPos].ColorHex == newList[newPos].ColorHex;
         }
 
         public override int ItemCount => _habits.Count;

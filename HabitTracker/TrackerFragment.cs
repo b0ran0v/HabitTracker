@@ -184,11 +184,9 @@ namespace HabitTracker
             {
                 if (Activity != null)
                 {
-                    _habits.Clear();
-                    _habits.AddRange(pairedData.Select(p => p.Habit!));
-                    _completions.Clear();
-                    _completions.AddRange(pairedData.Select(p => p.Completion));
-                    _adapter?.NotifyDataSetChanged();
+                    _adapter?.UpdateData(
+                        pairedData.Select(p => p.Habit!).ToList(),
+                        pairedData.Select(p => p.Completion).ToList());
                 }
             });
         }
@@ -340,6 +338,32 @@ namespace HabitTracker
             _completions = completions;
             _onItemClick = onItemClick;
             _getDate = getDate;
+        }
+
+        public void UpdateData(List<Habit> newHabits, List<HabitCompletion> newCompletions)
+        {
+            var oldHabits = new List<Habit>(_habits);
+            var oldCompletions = new List<HabitCompletion>(_completions);
+            var diff = DiffUtil.CalculateDiff(new TrackerDiffCallback(oldHabits, oldCompletions, newHabits, newCompletions));
+            _habits.Clear();
+            _habits.AddRange(newHabits);
+            _completions.Clear();
+            _completions.AddRange(newCompletions);
+            diff.DispatchUpdatesTo(this);
+        }
+
+        private class TrackerDiffCallback(
+            List<Habit> oldHabits, List<HabitCompletion> oldCompletions,
+            List<Habit> newHabits, List<HabitCompletion> newCompletions) : DiffUtil.Callback
+        {
+            public override int OldListSize => oldHabits.Count;
+            public override int NewListSize => newHabits.Count;
+            public override bool AreItemsTheSame(int oldPos, int newPos) =>
+                oldCompletions[oldPos].Id == newCompletions[newPos].Id;
+            public override bool AreContentsTheSame(int oldPos, int newPos) =>
+                oldHabits[oldPos].Name == newHabits[newPos].Name &&
+                oldHabits[oldPos].ColorHex == newHabits[newPos].ColorHex &&
+                oldCompletions[oldPos].CompletedDate.HasValue == newCompletions[newPos].CompletedDate.HasValue;
         }
 
         public override int ItemCount => _habits.Count;
