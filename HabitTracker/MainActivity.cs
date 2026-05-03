@@ -4,6 +4,7 @@ using Android.Views;
 using AndroidX.AppCompat.App;
 using Google.Android.Material.BottomNavigation;
 using Google.Android.Material.Navigation;
+using HabitTracker.Data;
 using Java.Util;
 using Fragment = AndroidX.Fragment.App.Fragment;
 
@@ -13,6 +14,7 @@ namespace HabitTracker;
 public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelectedListener
 {
     private BottomNavigationView? _navigation;
+    private Database? _database;
 
     private void ApplyPersistedNightMode()
     {
@@ -66,12 +68,15 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         base.OnCreate(savedInstanceState);
         SetContentView(ResourceConstant.Layout.activity_main);
 
+        var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "habits.db");
+        _database = new Database(dbPath);
+
         _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
         if (_navigation == null) return;
         _navigation.SetOnItemSelectedListener(this);
 
         if (savedInstanceState != null) return;
-        LoadFragment(new TrackerFragment());
+        LoadFragment(new TrackerFragment(_database));
         _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
     }
 
@@ -79,8 +84,8 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
     {
         Fragment? fragment = item.ItemId switch
         {
-            ResourceConstant.Id.navigation_habits => new HabitsFragment(),
-            ResourceConstant.Id.navigation_tracker => new TrackerFragment(),
+            ResourceConstant.Id.navigation_habits => new HabitsFragment(_database!),
+            ResourceConstant.Id.navigation_tracker => new TrackerFragment(_database!),
             ResourceConstant.Id.navigation_settings => new SettingsFragment(),
             _ => null
         };

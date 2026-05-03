@@ -10,7 +10,7 @@ using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker
 {
-    public class TrackerFragment : Fragment
+    public class TrackerFragment(Database database) : Fragment
     {
         private RecyclerView? _recyclerView;
         private Button? _addButton;
@@ -25,7 +25,7 @@ namespace HabitTracker
         private readonly List<Habit> _habits = [];
         private readonly List<HabitCompletion> _completions = [];
         private TrackerAdapter? _adapter;
-        private Database? _database;
+        private readonly Database _database = database;
         private DateTime _selectedDate = DateTime.Today;
 
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
@@ -42,15 +42,6 @@ namespace HabitTracker
             _yesterdayButton = view?.FindViewById<Button>(ResourceConstant.Id.yesterday_button);
             _todayButton = view?.FindViewById<Button>(ResourceConstant.Id.today_button);
             _tomorrowButton = view?.FindViewById<Button>(ResourceConstant.Id.tomorrow_button);
-
-            var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "habits.db");
-            var dbDir = Path.GetDirectoryName(dbPath);
-            if (!string.IsNullOrEmpty(dbDir) && !Directory.Exists(dbDir))
-            {
-                Directory.CreateDirectory(dbDir);
-            }
-
-            _database = new Database(dbPath);
 
             if (_recyclerView != null)
             {
@@ -177,7 +168,7 @@ namespace HabitTracker
 
         private async void LoadData()
         {
-            if (Activity == null || _database == null || _adapter == null) return;
+            if (Activity == null || _adapter == null) return;
 
             var completions = await _database.GetHabitCompletionsForDateAsync(_selectedDate);
             var allHabits = await _database.GetHabitsAsync();
@@ -204,7 +195,7 @@ namespace HabitTracker
 
         private async Task OnItemClick(int position)
         {
-            if (_database == null || position >= _completions.Count) return;
+            if (position >= _completions.Count) return;
 
             var completion = _completions[position];
             if (completion.CompletedDate.HasValue)
@@ -222,7 +213,7 @@ namespace HabitTracker
 
         private async void ShowAddTrackedHabitDialog()
         {
-            if (Activity == null || _database == null) return;
+            if (Activity == null) return;
 
             var allHabits = await _database.GetHabitsAsync();
 
@@ -275,7 +266,7 @@ namespace HabitTracker
 
         private async Task CopyHabitsForWeek()
         {
-            if (_database == null || Activity == null) return;
+            if (Activity == null) return;
 
             // Get habits for the currently selected date
             var currentCompletions = await _database.GetHabitCompletionsForDateAsync(_selectedDate);

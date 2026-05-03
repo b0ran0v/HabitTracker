@@ -9,13 +9,13 @@ using Android.Graphics.Drawables;
 
 namespace HabitTracker
 {
-    public class HabitsFragment : AndroidX.Fragment.App.Fragment
+    public class HabitsFragment(Database database) : AndroidX.Fragment.App.Fragment
     {
         private RecyclerView? _recyclerView;
         private Button? _addButton;
         private List<Habit> _habits = [];
         private HabitAdapter? _adapter;
-        private Database? _database;
+        private readonly Database _database = database;
 
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
         {
@@ -28,14 +28,6 @@ namespace HabitTracker
 
             _recyclerView = view.FindViewById<RecyclerView>(ResourceConstant.Id.habits_list);
             _addButton = view.FindViewById<Button>(ResourceConstant.Id.add_habit_button);
-
-            var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "habits.db");
-            var dbDir = Path.GetDirectoryName(dbPath);
-            if (!string.IsNullOrEmpty(dbDir) && !Directory.Exists(dbDir))
-            {
-                Directory.CreateDirectory(dbDir);
-            }
-            _database = new Database(dbPath);
 
             if (_recyclerView != null)
             {
@@ -83,7 +75,7 @@ namespace HabitTracker
 
         private async void LoadHabits()
         {
-            if (Activity == null || _database == null || _adapter == null)
+            if (Activity == null || _adapter == null)
             {
                 return;
             }
@@ -171,12 +163,9 @@ namespace HabitTracker
                     return;
                 }
 
-                if (_database != null)
-                {
-                    var habit = new Habit { Name = habitName, ColorHex = selectedColorHex };
-                    await _database.SaveHabitAsync(habit);
-                    LoadHabits();
-                }
+                var habit = new Habit { Name = habitName, ColorHex = selectedColorHex };
+                await _database.SaveHabitAsync(habit);
+                LoadHabits();
                 dialog.Dismiss();
             };
         }
@@ -271,13 +260,10 @@ namespace HabitTracker
                     return;
                 }
 
-                if (_database != null)
-                {
-                    habit.Name = habitName;
-                    habit.ColorHex = selectedColorHex;
-                    await _database.UpdateHabitAsync(habit);
-                    LoadHabits();
-                }
+                habit.Name = habitName;
+                habit.ColorHex = selectedColorHex;
+                await _database.UpdateHabitAsync(habit);
+                LoadHabits();
                 dialog.Dismiss();
             };
         }
