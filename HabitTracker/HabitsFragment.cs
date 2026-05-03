@@ -52,9 +52,11 @@ namespace HabitTracker
                         await _database.DeleteHabitCompletionsForHabitAsync(habit.Id);
                         Activity?.RunOnUiThread(() =>
                         {
-                            if (Activity == null || position >= _habits.Count) return;
-                            _habits.RemoveAt(position);
-                            _adapter?.NotifyItemRemoved(position);
+                            if (Activity == null) return;
+                            var idx = _habits.IndexOf(habit);
+                            if (idx < 0) return;
+                            _habits.RemoveAt(idx);
+                            _adapter?.NotifyItemRemoved(idx);
                         });
                     },
                     onEdit: (position) =>

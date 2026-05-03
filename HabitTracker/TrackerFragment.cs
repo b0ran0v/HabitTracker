@@ -66,10 +66,12 @@ namespace HabitTracker
                         await _database.DeleteHabitCompletionAsync(completion);
                         Activity?.RunOnUiThread(() =>
                         {
-                            if (Activity == null || position >= _completions.Count) return;
-                            _habits.RemoveAt(position);
-                            _completions.RemoveAt(position);
-                            _adapter?.NotifyItemRemoved(position);
+                            if (Activity == null) return;
+                            var idx = _completions.IndexOf(completion);
+                            if (idx < 0) return;
+                            _habits.RemoveAt(idx);
+                            _completions.RemoveAt(idx);
+                            _adapter?.NotifyItemRemoved(idx);
                         });
                     }, async void (position) => { await OnItemClick(position); },
                     position => position < _completions.Count && _completions[position].CompletedDate.HasValue,
