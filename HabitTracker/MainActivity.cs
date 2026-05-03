@@ -14,6 +14,19 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
 {
     private BottomNavigationView? _navigation;
 
+    private void ApplyPersistedNightMode()
+    {
+        var prefs = GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+        var savedTheme = prefs?.GetString("app_theme", null);
+        var nightMode = savedTheme switch
+        {
+            "dark" => AppCompatDelegate.ModeNightYes,
+            "light" => AppCompatDelegate.ModeNightNo,
+            _ => AppCompatDelegate.ModeNightFollowSystem
+        };
+        AppCompatDelegate.DefaultNightMode = nightMode;
+    }
+
     protected override void AttachBaseContext(Context? @base)
     {
         if (@base == null)
@@ -49,6 +62,7 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
+        ApplyPersistedNightMode();
         base.OnCreate(savedInstanceState);
         SetContentView(ResourceConstant.Layout.activity_main);
 

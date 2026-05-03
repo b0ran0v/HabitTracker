@@ -33,4 +33,5 @@
     <string name="edit">Өзгерту</string>
     <string name="edit_habit">Әдетті өзгерту</string>
     <string name="save">Сақтау</string>
+    <string name="toggle_theme">Тақырыпты ауыстыру</string>
 </resources>

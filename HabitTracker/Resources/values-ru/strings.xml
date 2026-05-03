@@ -33,4 +33,5 @@
     <string name="edit">Изменить</string>
     <string name="edit_habit">Изменить привычку</string>
     <string name="save">Сохранить</string>
+    <string name="toggle_theme">Переключить тему</string>
 </resources>
