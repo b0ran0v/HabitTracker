@@ -34,4 +34,6 @@
     <string name="edit_habit">Изменить привычку</string>
     <string name="save">Сохранить</string>
     <string name="toggle_theme">Переключить тему</string>
+    <string name="habit_name_hint">Название привычки</string>
+    <string name="choose_color">Выберите цвет</string>
 </resources>

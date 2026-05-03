@@ -34,4 +34,6 @@
     <string name="edit_habit">Әдетті өзгерту</string>
     <string name="save">Сақтау</string>
     <string name="toggle_theme">Тақырыпты ауыстыру</string>
+    <string name="habit_name_hint">Әдеттің атауы</string>
+    <string name="choose_color">Түсті таңдаңыз</string>
 </resources>
