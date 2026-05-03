@@ -1,5 +1,4 @@
 ﻿using _Microsoft.Android.Resource.Designer;
-using Android.App;
 using Android.Content;
 using Android.OS;
 using AndroidX.AppCompat.App;
@@ -48,14 +47,8 @@ namespace HabitTracker
         {
             ApplyPersistedNightMode();
             base.OnCreate(savedInstanceState);
-            SetContentView(ResourceConstant.Layout.activity_loading);
-
-            // Simulate loading or perform initialization
-            new Handler(Looper.MainLooper!).PostDelayed(() =>
-            {
-                StartActivity(new Intent(this, typeof(MainActivity)));
-                Finish();
-            }, 2000); // 2-second delay
+            StartActivity(new Intent(this, typeof(MainActivity)));
+            Finish();
         }
     }
 }
