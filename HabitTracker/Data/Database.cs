@@ -77,6 +77,14 @@ public class Database
         return await _database.DeleteAsync(habit);
     }
 
+    public async Task DeleteHabitCompletionsForHabitAsync(int habitId)
+    {
+        await _initializationTask;
+        await _database.Table<HabitCompletion>()
+            .Where(c => c.HabitId == habitId)
+            .DeleteAsync();
+    }
+
     public async Task ClearTablesAsync()
     {
         await _initializationTask;

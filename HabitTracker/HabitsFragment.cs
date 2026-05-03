@@ -49,6 +49,7 @@ namespace HabitTracker
                         if (_database == null || position >= _habits.Count) return;
                         var habit = _habits[position];
                         await _database.DeleteHabitAsync(habit);
+                        await _database.DeleteHabitCompletionsForHabitAsync(habit.Id);
                         Activity?.RunOnUiThread(() =>
                         {
                             if (Activity == null || position >= _habits.Count) return;
