@@ -30,4 +30,7 @@
     <string name="habits_created">Әдеттер жасалды</string>
     <string name="ok">Жарайды</string>
     <string name="add_all_activities">Барлығын қосу</string>
+    <string name="edit">Өзгерту</string>
+    <string name="edit_habit">Әдетті өзгерту</string>
+    <string name="save">Сақтау</string>
 </resources>

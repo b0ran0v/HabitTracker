@@ -30,4 +30,7 @@
     <string name="habits_created">Привычки созданы</string>
     <string name="ok">ОК</string>
     <string name="add_all_activities">Добавить все</string>
+    <string name="edit">Изменить</string>
+    <string name="edit_habit">Изменить привычку</string>
+    <string name="save">Сохранить</string>
 </resources>

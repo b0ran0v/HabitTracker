@@ -43,18 +43,25 @@ namespace HabitTracker
                 _adapter = new HabitAdapter(_habits);
                 _recyclerView.SetAdapter(_adapter);
 
-                var callback = new SwipeToDeleteCallback(async void (position) =>
-                {
-                    if (_database == null || position >= _habits.Count) return;
-                    var habit = _habits[position];
-                    await _database.DeleteHabitAsync(habit);
-                    Activity?.RunOnUiThread(() =>
+                var callback = new HabitSwipeCallback(
+                    onDelete: async void (position) =>
                     {
-                        if (Activity == null || position >= _habits.Count) return;
-                        _habits.RemoveAt(position);
-                        _adapter?.NotifyItemRemoved(position);
-                    });
-                }, Context);
+                        if (_database == null || position >= _habits.Count) return;
+                        var habit = _habits[position];
+                        await _database.DeleteHabitAsync(habit);
+                        Activity?.RunOnUiThread(() =>
+                        {
+                            if (Activity == null || position >= _habits.Count) return;
+                            _habits.RemoveAt(position);
+                            _adapter?.NotifyItemRemoved(position);
+                        });
+                    },
+                    onEdit: (position) =>
+                    {
+                        if (position >= _habits.Count) return;
+                        ShowEditHabitDialog(_habits[position]);
+                    },
+                    context: Context);
 
                 var itemTouchHelper = new ItemTouchHelper(callback);
                 itemTouchHelper.AttachToRecyclerView(_recyclerView);
@@ -91,11 +98,11 @@ namespace HabitTracker
             {
                 return;
             }
-            
+
             var dialogView = LayoutInflater.From(Activity)?.Inflate(ResourceConstant.Layout.dialog_add_habit, null);
             var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
             var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
-            
+
             var selectedColorHex = "#5C6BC0"; // Default
             var colorOptions = new[]
             {
@@ -142,8 +149,7 @@ namespace HabitTracker
 
             var builder = new AlertDialog.Builder(Activity);
             builder.SetView(dialogView);
-
-            builder.SetPositiveButton(GetString(ResourceConstant.String.add), (IDialogInterfaceOnClickListener?)null); 
+            builder.SetPositiveButton(GetString(ResourceConstant.String.add), (IDialogInterfaceOnClickListener?)null);
             builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
 
             var dialog = builder.Create();
@@ -171,6 +177,107 @@ namespace HabitTracker
                 dialog.Dismiss();
             };
         }
+
+        private void ShowEditHabitDialog(Habit habit)
+        {
+            if (Activity == null)
+            {
+                return;
+            }
+
+            var dialogView = LayoutInflater.From(Activity)?.Inflate(ResourceConstant.Layout.dialog_add_habit, null);
+            var titleView = dialogView?.FindViewById<TextView>(ResourceConstant.Id.dialog_title);
+            var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
+            var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
+
+            // Pre-fill with existing habit data
+            if (titleView != null)
+            {
+                titleView.Text = GetString(ResourceConstant.String.edit_habit);
+            }
+            if (input != null)
+            {
+                input.Text = habit.Name;
+                input.SetSelection(habit.Name.Length);
+            }
+
+            var selectedColorHex = habit.ColorHex;
+            var colorOptions = new[]
+            {
+                new { Id = ResourceConstant.Id.color_option_1, Hex = "#5C6BC0" },
+                new { Id = ResourceConstant.Id.color_option_2, Hex = "#66BB6A" },
+                new { Id = ResourceConstant.Id.color_option_3, Hex = "#FFA726" },
+                new { Id = ResourceConstant.Id.color_option_4, Hex = "#FF5252" },
+                new { Id = ResourceConstant.Id.color_option_5, Hex = "#26C6DA" },
+                new { Id = ResourceConstant.Id.color_option_6, Hex = "#AB47BC" }
+            };
+
+            var views = new List<View>();
+            foreach (var option in colorOptions)
+            {
+                var v = dialogView?.FindViewById<View>(option.Id);
+                if (v == null) continue;
+                views.Add(v);
+                // Highlight the habit's current color
+                if (option.Hex == selectedColorHex)
+                {
+                    v.Alpha = 1.0f;
+                    v.ScaleX = 1.2f;
+                    v.ScaleY = 1.2f;
+                }
+                else
+                {
+                    v.Alpha = 0.6f;
+                    v.ScaleX = 1.0f;
+                    v.ScaleY = 1.0f;
+                }
+
+                v.Click += (_, _) =>
+                {
+                    selectedColorHex = option.Hex;
+                    foreach (var otherV in views)
+                    {
+                        otherV.Alpha = 0.6f;
+                        otherV.ScaleX = 1.0f;
+                        otherV.ScaleY = 1.0f;
+                    }
+                    v.Alpha = 1.0f;
+                    v.ScaleX = 1.2f;
+                    v.ScaleY = 1.2f;
+                };
+            }
+
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetView(dialogView);
+            builder.SetPositiveButton(GetString(ResourceConstant.String.save), (IDialogInterfaceOnClickListener?)null);
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+
+            var dialog = builder.Create();
+            if (dialog == null) return;
+            dialog.Show();
+
+            dialog.GetButton((int)DialogButtonType.Positive)?.Click += async (_, _) =>
+            {
+                var habitName = input?.Text;
+                if (string.IsNullOrWhiteSpace(habitName))
+                {
+                    if (inputLayout != null)
+                    {
+                        inputLayout.Error = GetString(ResourceConstant.String.enter_habit_name_error);
+                    }
+                    return;
+                }
+
+                if (_database != null)
+                {
+                    habit.Name = habitName;
+                    habit.ColorHex = selectedColorHex;
+                    await _database.UpdateHabitAsync(habit);
+                    LoadHabits();
+                }
+                dialog.Dismiss();
+            };
+        }
     }
 
     public class HabitAdapter(List<Habit> habits) : RecyclerView.Adapter
@@ -190,7 +297,7 @@ namespace HabitTracker
             var habitHolder = (HabitViewHolder)holder;
             var habit = _habits[position];
             habitHolder.HabitName.Text = habit.Name;
-            
+
             // Apply habit color to indicator
             if (!string.IsNullOrEmpty(habit.ColorHex))
             {
@@ -220,18 +327,36 @@ namespace HabitTracker
         }
     }
 
-    public class SwipeToDeleteCallback : ItemTouchHelper.SimpleCallback
+    public class HabitSwipeCallback : ItemTouchHelper.SimpleCallback
     {
-        private readonly Action<int> _onSwiped;
-        private readonly Android.Graphics.Paint _backgroundPaint;
+        private readonly Action<int> _onDelete;
+        private readonly Action<int> _onEdit;
+        private readonly Android.Graphics.Paint _deletePaint;
+        private readonly Android.Graphics.Paint _editPaint;
         private readonly Android.Graphics.Paint _textPaint;
         private readonly Context? _context;
 
-        public SwipeToDeleteCallback(Action<int> onSwiped, Context? context) : base(0, ItemTouchHelper.Left)
+        public HabitSwipeCallback(Action<int> onDelete, Action<int> onEdit, Context? context)
+            : base(0, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
-            _onSwiped = onSwiped;
+            _onDelete = onDelete;
+            _onEdit = onEdit;
             _context = context;
-            _backgroundPaint = new Android.Graphics.Paint { Color = new Android.Graphics.Color(AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorDelete)), AntiAlias = true };
+
+            _deletePaint = new Android.Graphics.Paint
+            {
+                Color = new Android.Graphics.Color(
+                    AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorDelete)),
+                AntiAlias = true
+            };
+
+            _editPaint = new Android.Graphics.Paint
+            {
+                Color = new Android.Graphics.Color(
+                    AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorEdit)),
+                AntiAlias = true
+            };
+
             _textPaint = new Android.Graphics.Paint
             {
                 Color = Android.Graphics.Color.White,
@@ -248,45 +373,96 @@ namespace HabitTracker
 
         public override void OnSwiped(RecyclerView.ViewHolder viewHolder, int direction)
         {
-            _onSwiped(viewHolder.BindingAdapterPosition);
+            var position = viewHolder.BindingAdapterPosition;
+            if (direction == ItemTouchHelper.Left)
+            {
+                _onDelete(position);
+            }
+            else if (direction == ItemTouchHelper.Right)
+            {
+                // Snap the item back before showing the dialog so the list looks clean
+                viewHolder.ItemView.TranslationX = 0f;
+                _onEdit(position);
+            }
         }
 
-        public override void OnChildDraw(Android.Graphics.Canvas c, RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, bool isCurrentlyActive)
+        public override void OnChildDraw(
+            Android.Graphics.Canvas c,
+            RecyclerView recyclerView,
+            RecyclerView.ViewHolder viewHolder,
+            float dX,
+            float dY,
+            int actionState,
+            bool isCurrentlyActive)
         {
-            if (actionState == ItemTouchHelper.ActionStateSwipe && dX < 0)
+            if (actionState != ItemTouchHelper.ActionStateSwipe)
             {
-                var itemView = viewHolder.ItemView;
+                base.OnChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                return;
+            }
+
+            var itemView = viewHolder.ItemView;
+            const float cornerRadius = 24f;
+            const float verticalMargin = 12f;
+            const float horizontalMargin = 24f;
+
+            if (dX < 0)
+            {
+                // Swiping left — reveal Delete on the right
                 var maxDisplacement = -itemView.Width * 0.2f;
                 var currentDx = Math.Max(dX, maxDisplacement);
-
                 var backgroundWidth = Math.Abs(currentDx);
                 var left = itemView.Right + currentDx;
-                
-                // Draw a rounded rectangle background
-                const float cornerRadius = 24f;
-                var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12, itemView.Right - 24, itemView.Bottom - 12);
-                c.DrawRoundRect(background, cornerRadius, cornerRadius, _backgroundPaint);
 
-                var text = _context?.GetString(ResourceConstant.String.delete) ?? "Delete";
-                var textBounds = new Android.Graphics.Rect();
-                _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
-                
-                // Clip the text to the background bounds
-                c.Save();
-                c.ClipRect(background);
+                var background = new Android.Graphics.RectF(
+                    left - cornerRadius,
+                    itemView.Top + verticalMargin,
+                    itemView.Right - horizontalMargin,
+                    itemView.Bottom - verticalMargin);
+                c.DrawRoundRect(background, cornerRadius, cornerRadius, _deletePaint);
 
-                var textX = left + backgroundWidth / 2f - 12;
-                var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
-
-                c.DrawText(text, textX, textY, _textPaint);
-                c.Restore();
+                DrawLabel(c, _context?.GetString(ResourceConstant.String.delete) ?? "Delete",
+                    left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, background);
 
                 base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
             }
-            else
+            else if (dX > 0)
             {
-                base.OnChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                // Swiping right — reveal Edit on the left
+                var maxDisplacement = itemView.Width * 0.2f;
+                var currentDx = Math.Min(dX, maxDisplacement);
+                var backgroundWidth = currentDx;
+                var right = itemView.Left + currentDx;
+
+                var background = new Android.Graphics.RectF(
+                    itemView.Left + horizontalMargin,
+                    itemView.Top + verticalMargin,
+                    right + cornerRadius,
+                    itemView.Bottom - verticalMargin);
+                c.DrawRoundRect(background, cornerRadius, cornerRadius, _editPaint);
+
+                DrawLabel(c, _context?.GetString(ResourceConstant.String.edit) ?? "Edit",
+                    itemView.Left + horizontalMargin + backgroundWidth / 2f, itemView, background);
+
+                base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
             }
+        }
+
+        private void DrawLabel(
+            Android.Graphics.Canvas c,
+            string text,
+            float centerX,
+            Android.Views.View itemView,
+            Android.Graphics.RectF clipRect)
+        {
+            var textBounds = new Android.Graphics.Rect();
+            _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
+            var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
+
+            c.Save();
+            c.ClipRect(clipRect);
+            c.DrawText(text, centerX, textY, _textPaint);
+            c.Restore();
         }
     }
 }

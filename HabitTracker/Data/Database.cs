@@ -65,6 +65,12 @@ public class Database
             .ToListAsync();
     }
 
+    public async Task<int> UpdateHabitAsync(Habit habit)
+    {
+        await _initializationTask;
+        return await _database.UpdateAsync(habit);
+    }
+
     public async Task<int> DeleteHabitAsync(Habit habit)
     {
         await _initializationTask;

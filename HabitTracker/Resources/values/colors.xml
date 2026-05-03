@@ -18,6 +18,7 @@
     <color name="colorComplete">#4CAF50</color>
     <color name="colorUndo">#FF9800</color>
     <color name="colorDelete">#F44336</color>
+    <color name="colorEdit">#FFC107</color>
 
     <!-- Habit Colors -->
     <color name="habitColor1">#5C6BC0</color> <!-- Indigo -->

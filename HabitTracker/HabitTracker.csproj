@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net10.0-android</TargetFramework>
-        <AndroidSdkDirectory>C:\Users\Rustam\AppData\Local\Android\Sdk</AndroidSdkDirectory>
+        <AndroidSdkDirectory>C:\Android\SDK</AndroidSdkDirectory>
         <JavaSdkDirectory>C:\Program Files\Java\jdk-21.0.10</JavaSdkDirectory>
         <SupportedOSPlatformVersion>28</SupportedOSPlatformVersion>
         <OutputType>Exe</OutputType>
