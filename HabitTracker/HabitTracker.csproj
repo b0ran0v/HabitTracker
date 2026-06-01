@@ -15,10 +15,12 @@
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
       <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
       <AndroidMaxPageSize>0x4000</AndroidMaxPageSize>
+      <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+      <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
       <AndroidMaxPageSize>0x4000</AndroidMaxPageSize>
+      <TrimmerRootDescriptor>Linker.xml</TrimmerRootDescriptor>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />

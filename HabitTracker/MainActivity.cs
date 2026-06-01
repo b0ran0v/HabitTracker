@@ -68,7 +68,9 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         base.OnCreate(savedInstanceState);
         SetContentView(ResourceConstant.Layout.activity_main);
 
-        var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "habits.db");
+        var dbFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+        Directory.CreateDirectory(dbFolder);
+        var dbPath = Path.Combine(dbFolder, "habits.db");
         _database = new Database(dbPath);
 
         _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
