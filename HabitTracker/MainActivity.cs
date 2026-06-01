@@ -45,6 +45,9 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         }
         var locale = Locale.ForLanguageTag(lang)!;
         Locale.Default = locale;
+        var dotnetCulture = new System.Globalization.CultureInfo(lang);
+        System.Globalization.CultureInfo.DefaultThreadCurrentCulture = dotnetCulture;
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = dotnetCulture;
         var config = new Android.Content.Res.Configuration(@base.Resources!.Configuration);
         config.SetLocale(locale);
         base.AttachBaseContext(@base.CreateConfigurationContext(config));
