@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <linker>
-  <assembly fullname="HabitTracker">
-    <type fullname="HabitTracker.Data.Habit" preserve="all"/>
-    <type fullname="HabitTracker.Data.HabitCompletion" preserve="all"/>
-  </assembly>
+  <assembly fullname="HabitTracker" preserve="all"/>
 </linker>
