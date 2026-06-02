@@ -21,6 +21,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/habit_name_hint"
+        app:counterEnabled="true"
+        app:counterMaxLength="60"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -28,7 +30,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textCapSentences"
-            android:maxLines="1" />
+            android:maxLines="1"
+            android:maxLength="60" />
 
     </com.google.android.material.textfield.TextInputLayout>
 

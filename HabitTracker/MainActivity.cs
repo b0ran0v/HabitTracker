@@ -15,6 +15,10 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
 {
     private BottomNavigationView? _navigation;
     private Database? _database;
+    private HabitsFragment? _habitsFragment;
+    private TrackerFragment? _trackerFragment;
+    private SettingsFragment? _settingsFragment;
+    private Fragment? _activeFragment;
 
     private void ApplyPersistedNightMode()
     {
@@ -81,7 +85,8 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         _navigation.SetOnItemSelectedListener(this);
 
         if (savedInstanceState != null) return;
-        LoadFragment(new TrackerFragment(_database));
+        _trackerFragment = new TrackerFragment(_database);
+        ShowFragment(_trackerFragment);
         _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
     }
 
@@ -89,22 +94,29 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
     {
         Fragment? fragment = item.ItemId switch
         {
-            ResourceConstant.Id.navigation_habits => new HabitsFragment(_database!),
-            ResourceConstant.Id.navigation_tracker => new TrackerFragment(_database!),
-            ResourceConstant.Id.navigation_settings => new SettingsFragment(),
+            ResourceConstant.Id.navigation_habits => _habitsFragment ??= new HabitsFragment(_database!),
+            ResourceConstant.Id.navigation_tracker => _trackerFragment ??= new TrackerFragment(_database!),
+            ResourceConstant.Id.navigation_settings => _settingsFragment ??= new SettingsFragment(),
             _ => null
         };
 
-        return LoadFragment(fragment);
+        return ShowFragment(fragment);
     }
 
-    private bool LoadFragment(Fragment? fragment)
+    private bool ShowFragment(Fragment? fragment)
     {
         if (fragment == null) return false;
 
-        var transaction = SupportFragmentManager.BeginTransaction();
-        transaction.Replace(ResourceConstant.Id.fragment_container, fragment);
-        transaction.Commit();
+        var tx = SupportFragmentManager.BeginTransaction();
+        if (_activeFragment != null) tx.Hide(_activeFragment);
+
+        if (!fragment.IsAdded)
+            tx.Add(ResourceConstant.Id.fragment_container, fragment);
+        else
+            tx.Show(fragment);
+
+        _activeFragment = fragment;
+        tx.Commit();
         return true;
     }
 }

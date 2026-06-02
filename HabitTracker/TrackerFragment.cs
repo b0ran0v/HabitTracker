@@ -1,10 +1,12 @@
 ﻿using _Microsoft.Android.Resource.Designer;
 using Android.Content;
+using Android.Util;
 using Android.Views;
 using Google.Android.Material.DatePicker;
 using AndroidX.RecyclerView.Widget;
 using HabitTracker.Data;
 using Android.Graphics.Drawables;
+using System.Globalization;
 using AlertDialog = AndroidX.AppCompat.App.AlertDialog;
 using Fragment = AndroidX.Fragment.App.Fragment;
 
@@ -13,6 +15,7 @@ namespace HabitTracker
     public class TrackerFragment(Database database) : Fragment
     {
         private RecyclerView? _recyclerView;
+        private View? _emptyState;
         private Button? _addButton;
         private Button? _copyWeekButton;
         private TextView? _dateText;
@@ -33,6 +36,7 @@ namespace HabitTracker
             var view = inflater.Inflate(ResourceConstant.Layout.fragment_tracker, container, false);
 
             _recyclerView = view?.FindViewById<RecyclerView>(ResourceConstant.Id.tracker_list);
+            _emptyState = view?.FindViewById<View>(ResourceConstant.Id.empty_state_tracker);
             _addButton = view?.FindViewById<Button>(ResourceConstant.Id.add_tracked_habit_button);
             _copyWeekButton = view?.FindViewById<Button>(ResourceConstant.Id.copy_week_button);
             _dateText = view?.FindViewById<TextView>(ResourceConstant.Id.selected_date_text);
@@ -143,11 +147,19 @@ namespace HabitTracker
             return view;
         }
 
+        private CultureInfo GetCurrentCulture()
+        {
+            var prefs = Activity?.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+            var lang = prefs?.GetString("app_language", null);
+            try { return lang != null ? new CultureInfo(lang) : CultureInfo.CurrentCulture; }
+            catch { return CultureInfo.CurrentCulture; }
+        }
+
         private void UpdateDateText()
         {
-            _dateText?.Text = _selectedDate.ToString("MMMM dd, yyyy");
-
-            _dayOfWeekText?.Text = _selectedDate.ToString("dddd");
+            var culture = GetCurrentCulture();
+            _dateText?.Text = _selectedDate.ToString("MMMM dd, yyyy", culture);
+            _dayOfWeekText?.Text = _selectedDate.ToString("dddd", culture).ToUpper(culture);
 
             if (_relativeDateText != null)
             {
@@ -158,7 +170,7 @@ namespace HabitTracker
                 else if (_selectedDate.Date == DateTime.Today.AddDays(1))
                     _relativeDateText.Text = GetString(ResourceConstant.String.tomorrow);
                 else
-                    _relativeDateText.Text = _selectedDate.ToString("dddd");
+                    _relativeDateText.Text = _selectedDate.ToString("dddd", culture);
             }
 
             _addButton?.Text = _selectedDate.Date == DateTime.Today
@@ -187,6 +199,7 @@ namespace HabitTracker
                     _adapter?.UpdateData(
                         pairedData.Select(p => p.Habit!).ToList(),
                         pairedData.Select(p => p.Completion).ToList());
+                    _emptyState?.Visibility = pairedData.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
                 }
             });
         }
@@ -266,43 +279,56 @@ namespace HabitTracker
         {
             if (Activity == null) return;
 
-            // Get habits for the currently selected date
             var currentCompletions = await _database.GetHabitCompletionsForDateAsync(_selectedDate);
-            if (currentCompletions.Count == 0) return;
+            if (currentCompletions.Count == 0)
+            {
+                Toast.MakeText(Activity, GetString(ResourceConstant.String.no_habits_to_copy), ToastLength.Short)?.Show();
+                return;
+            }
 
-            // Calculate the start and end of the current week (assuming Monday start)
+            var tcs = new TaskCompletionSource<bool>();
+            var confirmBuilder = new AlertDialog.Builder(Activity);
+            confirmBuilder.SetTitle(GetString(ResourceConstant.String.copy_week_confirm_title));
+            confirmBuilder.SetMessage(GetString(ResourceConstant.String.copy_week_confirm_message));
+            confirmBuilder.SetPositiveButton(GetString(ResourceConstant.String.ok), (_, _) => tcs.TrySetResult(true));
+            confirmBuilder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => tcs.TrySetResult(false));
+            confirmBuilder.SetCancelable(false);
+            confirmBuilder.Show();
+
+            if (!await tcs.Task) return;
+
             var currentDayOfWeek = (int)_selectedDate.DayOfWeek;
-            var daysToSubtract = (currentDayOfWeek == 0) ? 6 : currentDayOfWeek - 1; // Adjust for Sunday being 0
+            var daysToSubtract = currentDayOfWeek == 0 ? 6 : currentDayOfWeek - 1;
             var startOfWeek = _selectedDate.AddDays(-daysToSubtract).Date;
 
+            var daysAdded = 0;
             for (var i = 0; i < 7; i++)
             {
                 var targetDate = startOfWeek.AddDays(i);
-
-                // Skip if the target date is the same as the source date (already have habits)
                 if (targetDate == _selectedDate.Date) continue;
 
                 var existingCompletions = await _database.GetHabitCompletionsForDateAsync(targetDate);
                 var existingHabitIds = existingCompletions.Select(c => c.HabitId).ToList();
 
-                foreach (var newCompletion in from completion in currentCompletions
-                         where !existingHabitIds.Contains(completion.HabitId)
-                         select new HabitCompletion
-                         {
-                             HabitId = completion.HabitId,
-                             CreatedDate = DateTime.Now,
-                             DueDate = targetDate,
-                             CompletedDate = null
-                         })
+                var toAdd = currentCompletions.Where(c => !existingHabitIds.Contains(c.HabitId)).ToList();
+                foreach (var completion in toAdd)
                 {
-                    await _database.SaveHabitCompletionAsync(newCompletion);
+                    await _database.SaveHabitCompletionAsync(new HabitCompletion
+                    {
+                        HabitId = completion.HabitId,
+                        CreatedDate = DateTime.Now,
+                        DueDate = targetDate,
+                        CompletedDate = null
+                    });
                 }
+                if (toAdd.Count > 0) daysAdded++;
             }
 
-            var builder = new AlertDialog.Builder(Activity);
-            builder.SetMessage(GetString(ResourceConstant.String.habits_created));
-            builder.SetPositiveButton(GetString(ResourceConstant.String.ok), (_, _) => { });
-            builder.Show();
+            var successBuilder = new AlertDialog.Builder(Activity);
+            successBuilder.SetMessage(string.Format(GetString(ResourceConstant.String.copy_week_success),
+                currentCompletions.Count, daysAdded));
+            successBuilder.SetPositiveButton(GetString(ResourceConstant.String.ok), (_, _) => { });
+            successBuilder.Show();
         }
 
         private class DatePickerPositiveListener : Java.Lang.Object, IMaterialPickerOnPositiveButtonClickListener
@@ -487,10 +513,12 @@ namespace HabitTracker
                         ResourceConstant.Color.colorUndo)),
                 AntiAlias = true
             };
+            var textSizePx = TypedValue.ApplyDimension(ComplexUnitType.Dip, 14,
+                context?.Resources?.DisplayMetrics ?? Application.Context.Resources!.DisplayMetrics);
             _textPaint = new Android.Graphics.Paint
             {
                 Color = Android.Graphics.Color.White,
-                TextSize = 32,
+                TextSize = textSizePx,
                 TextAlign = Android.Graphics.Paint.Align.Center,
                 AntiAlias = true
             };

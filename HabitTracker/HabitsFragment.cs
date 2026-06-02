@@ -3,6 +3,7 @@ using Android.Views;
 using HabitTracker.Data;
 using AndroidX.RecyclerView.Widget;
 using Android.Content;
+using Android.Util;
 using Google.Android.Material.TextField;
 using AlertDialog = Android.App.AlertDialog;
 using Android.Graphics.Drawables;
@@ -12,6 +13,7 @@ namespace HabitTracker
     public class HabitsFragment(Database database) : AndroidX.Fragment.App.Fragment
     {
         private RecyclerView? _recyclerView;
+        private View? _emptyState;
         private Button? _addButton;
         private List<Habit> _habits = [];
         private HabitAdapter? _adapter;
@@ -27,6 +29,7 @@ namespace HabitTracker
             base.OnViewCreated(view, savedInstanceState);
 
             _recyclerView = view.FindViewById<RecyclerView>(ResourceConstant.Id.habits_list);
+            _emptyState = view.FindViewById<View>(ResourceConstant.Id.empty_state_habits);
             _addButton = view.FindViewById<Button>(ResourceConstant.Id.add_habit_button);
 
             if (_recyclerView != null)
@@ -84,6 +87,7 @@ namespace HabitTracker
             {
                 _habits = habits;
                 _adapter?.UpdateHabits(_habits);
+                _emptyState?.Visibility = _habits.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
             });
         }
 
@@ -350,10 +354,12 @@ namespace HabitTracker
                 AntiAlias = true
             };
 
+            var textSizePx = TypedValue.ApplyDimension(ComplexUnitType.Dip, 14,
+                context?.Resources?.DisplayMetrics ?? Application.Context.Resources!.DisplayMetrics);
             _textPaint = new Android.Graphics.Paint
             {
                 Color = Android.Graphics.Color.White,
-                TextSize = 32,
+                TextSize = textSizePx,
                 TextAlign = Android.Graphics.Paint.Align.Center,
                 AntiAlias = true
             };

@@ -36,4 +36,10 @@
     <string name="toggle_theme">Toggle Theme</string>
     <string name="habit_name_hint">Habit Name</string>
     <string name="choose_color">Choose Color</string>
+    <string name="no_habits_yet">No habits yet — tap \'Add Habit\' to get started</string>
+    <string name="no_tracked_habits">No habits tracked for this day — tap the button below to add one</string>
+    <string name="copy_week_confirm_title">Copy to this week?</string>
+    <string name="copy_week_confirm_message">This will add these habits to all other days this week.</string>
+    <string name="copy_week_success">{0} habits added to {1} days this week</string>
+    <string name="no_habits_to_copy">No habits tracked for this date — nothing to copy</string>
 </resources>

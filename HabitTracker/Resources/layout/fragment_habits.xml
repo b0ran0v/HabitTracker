@@ -13,13 +13,39 @@
         android:text="@string/my_habits"
         style="@style/HabitTitle" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/habits_list"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="8dp"
-        android:clipToPadding="false" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/habits_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:clipToPadding="false" />
+
+        <LinearLayout
+            android:id="@+id/empty_state_habits"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone"
+            android:padding="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/no_habits_yet"
+                android:textSize="16sp"
+                android:textColor="@color/textColorSecondary"
+                android:gravity="center"
+                android:lineSpacingMultiplier="1.4" />
+
+        </LinearLayout>
+
+    </FrameLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/add_habit_button"

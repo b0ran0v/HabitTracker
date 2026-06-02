@@ -36,4 +36,10 @@
     <string name="toggle_theme">Переключить тему</string>
     <string name="habit_name_hint">Название привычки</string>
     <string name="choose_color">Выберите цвет</string>
+    <string name="no_habits_yet">Нет привычек — нажмите \'Добавить привычку\', чтобы начать</string>
+    <string name="no_tracked_habits">Нет привычек на этот день — нажмите кнопку ниже, чтобы добавить</string>
+    <string name="copy_week_confirm_title">Копировать на неделю?</string>
+    <string name="copy_week_confirm_message">Это добавит эти привычки во все остальные дни недели.</string>
+    <string name="copy_week_success">{0} привычек добавлено на {1} дней этой недели</string>
+    <string name="no_habits_to_copy">Нет привычек для этой даты — нечего копировать</string>
 </resources>
