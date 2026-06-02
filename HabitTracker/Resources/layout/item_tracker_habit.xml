@@ -25,14 +25,31 @@
             android:layout_marginEnd="12dp"
             android:buttonTint="@color/colorPrimary" />
 
-        <TextView
-            android:id="@+id/tracker_habit_name"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textSize="18sp"
-            android:textColor="@color/textColorPrimary"
-            android:fontFamily="sans-serif-medium" />
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tracker_habit_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="18sp"
+                android:textColor="@color/textColorPrimary"
+                android:fontFamily="sans-serif-medium" />
+
+            <TextView
+                android:id="@+id/tracker_habit_notes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/textColorSecondary"
+                android:fontFamily="sans-serif"
+                android:layout_marginTop="2dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
         <View
             android:id="@+id/tracker_color_indicator"

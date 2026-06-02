@@ -13,4 +13,5 @@ public class HabitCompletion
     public DateTime CreatedDate { get; set; }
     public DateTime DueDate { get; set; }
     public DateTime? CompletedDate { get; set; }
+    public string Notes { get; set; } = string.Empty;
 }

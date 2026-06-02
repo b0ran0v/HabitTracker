@@ -13,6 +13,8 @@ namespace HabitTracker;
 [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
 public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelectedListener
 {
+    public static Database? SharedDatabase { get; private set; }
+
     private BottomNavigationView? _navigation;
     private Database? _database;
     private HabitsFragment? _habitsFragment;
@@ -79,6 +81,7 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         Directory.CreateDirectory(dbFolder);
         var dbPath = Path.Combine(dbFolder, "habits.db");
         _database = new Database(dbPath);
+        SharedDatabase = _database;
 
         _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
         if (_navigation == null) return;
@@ -88,6 +91,58 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         _trackerFragment = new TrackerFragment(_database);
         ShowFragment(_trackerFragment);
         _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
+
+        ShowOnboardingIfFirstRun();
+    }
+
+    private void ShowOnboardingIfFirstRun()
+    {
+        var prefs = GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+        if (prefs?.GetBoolean("onboarding_completed", false) == true) return;
+
+        var steps = new[]
+        {
+            (GetString(ResourceConstant.String.onboarding_title_1), GetString(ResourceConstant.String.onboarding_desc_1)),
+            (GetString(ResourceConstant.String.onboarding_title_2), GetString(ResourceConstant.String.onboarding_desc_2)),
+            (GetString(ResourceConstant.String.onboarding_title_3), GetString(ResourceConstant.String.onboarding_desc_3))
+        };
+        ShowOnboardingStep(steps, 0);
+    }
+
+    private AndroidX.AppCompat.App.AlertDialog? _onboardingDialog;
+
+    private void ShowOnboardingStep((string title, string desc)[] steps, int index)
+    {
+        _onboardingDialog?.Dismiss();
+
+        var isLast = index == steps.Length - 1;
+        var builder = new AndroidX.AppCompat.App.AlertDialog.Builder(this);
+        builder.SetTitle(steps[index].title);
+        builder.SetMessage(steps[index].desc);
+        builder.SetCancelable(false);
+
+        if (isLast)
+        {
+            builder.SetPositiveButton(GetString(ResourceConstant.String.get_started), (_, _) =>
+            {
+                var prefs = GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+                prefs?.Edit()?.PutBoolean("onboarding_completed", true)?.Apply();
+                _onboardingDialog = null;
+            });
+        }
+        else
+        {
+            builder.SetPositiveButton(GetString(ResourceConstant.String.next), (_, _) =>
+                ShowOnboardingStep(steps, index + 1));
+        }
+
+        if (index > 0)
+        {
+            builder.SetNegativeButton(GetString(ResourceConstant.String.back), (_, _) =>
+                ShowOnboardingStep(steps, index - 1));
+        }
+
+        _onboardingDialog = builder.Show();
     }
 
     public bool OnNavigationItemSelected(IMenuItem item)

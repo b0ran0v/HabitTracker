@@ -183,13 +183,14 @@ namespace HabitTracker
             if (Activity == null || _adapter == null) return;
 
             var completions = await _database.GetHabitCompletionsForDateAsync(_selectedDate);
-            var allHabits = await _database.GetHabitsAsync();
+            var activeHabits = await _database.GetHabitsAsync();
+            var archivedHabits = await _database.GetArchivedHabitsAsync();
+            var allHabits = activeHabits.Concat(archivedHabits).ToList();
 
-            // Map completions back to habits and sort by completion status
             var pairedData = completions
                 .Select(c => new { Completion = c, Habit = allHabits.FirstOrDefault(h => h.Id == c.HabitId) })
                 .Where(p => p.Habit != null)
-                .OrderBy(p => p.Completion.CompletedDate.HasValue) // false (not completed) comes first
+                .OrderBy(p => p.Completion.CompletedDate.HasValue)
                 .ToList();
 
             Activity?.RunOnUiThread(() =>
@@ -209,15 +210,64 @@ namespace HabitTracker
             if (position >= _completions.Count) return;
 
             var completion = _completions[position];
+            var isCompleting = !completion.CompletedDate.HasValue;
+
+            if (isCompleting)
+            {
+                await ShowNotesDialogAndComplete(completion);
+            }
+            else
+            {
+                var updated = new HabitCompletion
+                {
+                    Id = completion.Id,
+                    HabitId = completion.HabitId,
+                    CreatedDate = completion.CreatedDate,
+                    DueDate = completion.DueDate,
+                    CompletedDate = null,
+                    Notes = completion.Notes
+                };
+                await _database.UpdateHabitCompletionAsync(updated);
+                LoadData();
+            }
+        }
+
+        private async Task ShowNotesDialogAndComplete(HabitCompletion completion)
+        {
+            if (Activity == null) return;
+
+            var input = new EditText(Activity)
+            {
+                Hint = GetString(ResourceConstant.String.note_hint),
+                Text = completion.Notes,
+                InputType = Android.Text.InputTypes.ClassText | Android.Text.InputTypes.TextFlagCapSentences
+            };
+            input.SetMaxLines(2);
+            input.SetPadding(48, 24, 48, 24);
+
+            var tcs = new TaskCompletionSource<string?>();
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(GetString(ResourceConstant.String.add_note));
+            builder.SetView(input);
+            builder.SetPositiveButton(GetString(ResourceConstant.String.complete), (_, _) =>
+                tcs.TrySetResult(input.Text));
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) =>
+                tcs.TrySetResult(null));
+            builder.SetCancelable(false);
+            builder.Show();
+
+            var notes = await tcs.Task;
+            if (notes == null) return;
+
             var updated = new HabitCompletion
             {
                 Id = completion.Id,
                 HabitId = completion.HabitId,
                 CreatedDate = completion.CreatedDate,
                 DueDate = completion.DueDate,
-                CompletedDate = completion.CompletedDate.HasValue ? null : DateTime.Now
+                CompletedDate = DateTime.Now,
+                Notes = notes
             };
-
             await _database.UpdateHabitCompletionAsync(updated);
             LoadData();
         }
@@ -405,6 +455,17 @@ namespace HabitTracker
             trackerHolder.HabitName.Text = habit.Name;
             trackerHolder.Checkbox.Checked = isCompleted;
 
+            var notes = _completions[position].Notes;
+            if (!string.IsNullOrWhiteSpace(notes))
+            {
+                trackerHolder.HabitNotes.Text = notes;
+                trackerHolder.HabitNotes.Visibility = ViewStates.Visible;
+            }
+            else
+            {
+                trackerHolder.HabitNotes.Visibility = ViewStates.Gone;
+            }
+
             if (isCompleted)
             {
                 trackerHolder.HabitName.PaintFlags |= Android.Graphics.PaintFlags.StrikeThruText;
@@ -465,6 +526,9 @@ namespace HabitTracker
         {
             public TextView HabitName { get; } =
                 itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_name)!;
+
+            public TextView HabitNotes { get; } =
+                itemView.FindViewById<TextView>(ResourceConstant.Id.tracker_habit_notes)!;
 
             public CheckBox Checkbox { get; } = itemView.FindViewById<CheckBox>(ResourceConstant.Id.tracker_checkbox)!;
 

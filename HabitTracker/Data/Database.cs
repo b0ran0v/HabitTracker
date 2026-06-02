@@ -22,7 +22,49 @@ public class Database
     public async Task<List<Habit>> GetHabitsAsync()
     {
         await _initializationTask;
+        return await _database.Table<Habit>()
+            .Where(h => !h.IsArchived)
+            .OrderBy(h => h.SortOrder)
+            .ToListAsync();
+    }
+
+    public async Task<List<Habit>> GetArchivedHabitsAsync()
+    {
+        await _initializationTask;
+        return await _database.Table<Habit>()
+            .Where(h => h.IsArchived)
+            .OrderBy(h => h.Name)
+            .ToListAsync();
+    }
+
+    public async Task<List<Habit>> GetAllHabitsAsync()
+    {
+        await _initializationTask;
         return await _database.Table<Habit>().ToListAsync();
+    }
+
+    public async Task UpdateHabitSortOrdersAsync(List<Habit> habits)
+    {
+        await _initializationTask;
+        for (var i = 0; i < habits.Count; i++)
+        {
+            habits[i].SortOrder = i;
+            await _database.UpdateAsync(habits[i]);
+        }
+    }
+
+    public async Task ArchiveHabitAsync(Habit habit)
+    {
+        await _initializationTask;
+        habit.IsArchived = true;
+        await _database.UpdateAsync(habit);
+    }
+
+    public async Task UnarchiveHabitAsync(Habit habit)
+    {
+        await _initializationTask;
+        habit.IsArchived = false;
+        await _database.UpdateAsync(habit);
     }
 
     public async Task<int> SaveHabitAsync(Habit habit)

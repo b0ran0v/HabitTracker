@@ -34,12 +34,12 @@
             android:fontFamily="sans-serif-medium" />
 
         <ImageView
-            android:id="@+id/habit_action_icon"
+            android:id="@+id/habit_drag_handle"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_chevron_right"
+            android:src="@drawable/ic_drag_handle"
             app:tint="@color/textColorSecondary"
-            android:visibility="gone" />
+            android:padding="2dp" />
 
     </LinearLayout>
 

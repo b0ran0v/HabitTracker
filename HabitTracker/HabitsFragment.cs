@@ -15,8 +15,10 @@ namespace HabitTracker
         private RecyclerView? _recyclerView;
         private View? _emptyState;
         private Button? _addButton;
+        private Button? _viewArchivedButton;
         private List<Habit> _habits = [];
         private HabitAdapter? _adapter;
+        private ItemTouchHelper? _itemTouchHelper;
         private readonly Database _database = database;
 
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
@@ -31,20 +33,21 @@ namespace HabitTracker
             _recyclerView = view.FindViewById<RecyclerView>(ResourceConstant.Id.habits_list);
             _emptyState = view.FindViewById<View>(ResourceConstant.Id.empty_state_habits);
             _addButton = view.FindViewById<Button>(ResourceConstant.Id.add_habit_button);
+            _viewArchivedButton = view.FindViewById<Button>(ResourceConstant.Id.view_archived_button);
 
             if (_recyclerView != null)
             {
                 _recyclerView.SetLayoutManager(new LinearLayoutManager(Activity));
-                _adapter = new HabitAdapter(_habits);
+                _adapter = new HabitAdapter(_habits, holder =>
+                    _itemTouchHelper?.StartDrag(holder));
                 _recyclerView.SetAdapter(_adapter);
 
                 var callback = new HabitSwipeCallback(
-                    onDelete: async void (position) =>
+                    onArchive: async void (position) =>
                     {
                         if (position >= _habits.Count) return;
                         var habit = _habits[position];
-                        await _database.DeleteHabitAsync(habit);
-                        await _database.DeleteHabitCompletionsForHabitAsync(habit.Id);
+                        await _database.ArchiveHabitAsync(habit);
                         Activity?.RunOnUiThread(() =>
                         {
                             if (Activity == null) return;
@@ -52,6 +55,7 @@ namespace HabitTracker
                             if (idx < 0) return;
                             _habits.RemoveAt(idx);
                             _adapter?.NotifyItemRemoved(idx);
+                            _emptyState?.Visibility = _habits.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
                         });
                     },
                     onEdit: (position) =>
@@ -59,29 +63,36 @@ namespace HabitTracker
                         if (position >= _habits.Count) return;
                         ShowEditHabitDialog(_habits[position]);
                     },
+                    onMove: (fromPos, toPos) =>
+                    {
+                        if (fromPos < 0 || toPos < 0 || fromPos >= _habits.Count || toPos >= _habits.Count) return;
+                        var item = _habits[fromPos];
+                        _habits.RemoveAt(fromPos);
+                        _habits.Insert(toPos, item);
+                        _adapter?.NotifyItemMoved(fromPos, toPos);
+                    },
+                    onDragEnd: async void () =>
+                    {
+                        await _database.UpdateHabitSortOrdersAsync(_habits);
+                    },
                     context: Context);
 
-                var itemTouchHelper = new ItemTouchHelper(callback);
-                itemTouchHelper.AttachToRecyclerView(_recyclerView);
+                _itemTouchHelper = new ItemTouchHelper(callback);
+                _itemTouchHelper.AttachToRecyclerView(_recyclerView);
             }
 
             if (_addButton != null)
-            {
-                _addButton.Click += (_, _) =>
-                {
-                    ShowAddHabitDialog();
-                };
-            }
+                _addButton.Click += (_, _) => ShowAddHabitDialog();
+
+            if (_viewArchivedButton != null)
+                _viewArchivedButton.Click += (_, _) => ShowArchivedHabitsDialog();
 
             LoadHabits();
         }
 
         private async void LoadHabits()
         {
-            if (Activity == null || _adapter == null)
-            {
-                return;
-            }
+            if (Activity == null || _adapter == null) return;
             var habits = await _database.GetHabitsAsync();
             Activity?.RunOnUiThread(() =>
             {
@@ -89,6 +100,41 @@ namespace HabitTracker
                 _adapter?.UpdateHabits(_habits);
                 _emptyState?.Visibility = _habits.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
             });
+        }
+
+        private async void ShowArchivedHabitsDialog()
+        {
+            if (Activity == null) return;
+            var archived = await _database.GetArchivedHabitsAsync();
+            if (archived.Count == 0)
+            {
+                Toast.MakeText(Activity, GetString(ResourceConstant.String.no_archived_habits), ToastLength.Short)?.Show();
+                return;
+            }
+
+            var names = archived.Select(h => h.Name).ToArray();
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(GetString(ResourceConstant.String.archived_habits));
+            builder.SetItems(names, async (_, e) =>
+            {
+                var selected = archived[e.Which];
+                var actionBuilder = new AlertDialog.Builder(Activity);
+                actionBuilder.SetTitle(selected.Name);
+                actionBuilder.SetPositiveButton(GetString(ResourceConstant.String.restore), async (_, _) =>
+                {
+                    await _database.UnarchiveHabitAsync(selected);
+                    LoadHabits();
+                });
+                actionBuilder.SetNegativeButton(GetString(ResourceConstant.String.delete_permanently), async (_, _) =>
+                {
+                    await _database.DeleteHabitAsync(selected);
+                    await _database.DeleteHabitCompletionsForHabitAsync(selected.Id);
+                });
+                actionBuilder.SetNeutralButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+                actionBuilder.Show();
+            });
+            builder.SetNeutralButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+            builder.Show();
         }
 
         private void ShowAddHabitDialog()
@@ -265,9 +311,16 @@ namespace HabitTracker
         }
     }
 
-    public class HabitAdapter(List<Habit> habits) : RecyclerView.Adapter
+    public class HabitAdapter : RecyclerView.Adapter
     {
-        private List<Habit> _habits = habits;
+        private List<Habit> _habits;
+        private readonly Action<RecyclerView.ViewHolder> _onStartDrag;
+
+        public HabitAdapter(List<Habit> habits, Action<RecyclerView.ViewHolder> onStartDrag)
+        {
+            _habits = habits;
+            _onStartDrag = onStartDrag;
+        }
 
         public void UpdateHabits(List<Habit> habits)
         {
@@ -295,7 +348,6 @@ namespace HabitTracker
             var habit = _habits[position];
             habitHolder.HabitName.Text = habit.Name;
 
-            // Apply habit color to indicator
             if (!string.IsNullOrEmpty(habit.ColorHex))
             {
                 try
@@ -304,56 +356,74 @@ namespace HabitTracker
                     var background = habitHolder.ColorIndicator.Background as GradientDrawable;
                     background?.SetColor(color);
                 }
-                catch
-                {
-                    // Fallback to the default color if parsing fails
-                }
+                catch { }
             }
         }
 
         public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
         {
             var view = LayoutInflater.From(parent.Context)?.Inflate(ResourceConstant.Layout.item_habit, parent, false);
-            return new HabitViewHolder(view!);
+            var holder = new HabitViewHolder(view!);
+            holder.DragHandle.SetOnTouchListener(new DragHandleTouchListener(holder, _onStartDrag));
+            return holder;
+        }
+
+        private class DragHandleTouchListener(RecyclerView.ViewHolder holder,
+            Action<RecyclerView.ViewHolder> onStartDrag) : Java.Lang.Object, View.IOnTouchListener
+        {
+            public bool OnTouch(View? v, MotionEvent? e)
+            {
+                if (e?.Action == MotionEventActions.Down)
+                {
+                    onStartDrag(holder);
+                    return true;
+                }
+                return false;
+            }
         }
 
         private class HabitViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
         {
             public TextView HabitName { get; } = itemView.FindViewById<TextView>(ResourceConstant.Id.habit_name)!;
             public View ColorIndicator { get; } = itemView.FindViewById<View>(ResourceConstant.Id.habit_color_indicator)!;
+            public View DragHandle { get; } = itemView.FindViewById<View>(ResourceConstant.Id.habit_drag_handle)!;
         }
     }
 
     public class HabitSwipeCallback : ItemTouchHelper.SimpleCallback
     {
-        private readonly Action<int> _onDelete;
+        private readonly Action<int> _onArchive;
         private readonly Action<int> _onEdit;
-        private readonly Android.Graphics.Paint _deletePaint;
+        private readonly Action<int, int> _onMove;
+        private readonly Action _onDragEnd;
+        private bool _isDragging;
+        private readonly Android.Graphics.Paint _archivePaint;
         private readonly Android.Graphics.Paint _editPaint;
         private readonly Android.Graphics.Paint _textPaint;
         private readonly Context? _context;
 
-        public HabitSwipeCallback(Action<int> onDelete, Action<int> onEdit, Context? context)
-            : base(0, ItemTouchHelper.Left | ItemTouchHelper.Right)
+        public HabitSwipeCallback(Action<int> onArchive, Action<int> onEdit, Action<int, int> onMove,
+            Action onDragEnd, Context? context)
+            : base(ItemTouchHelper.Up | ItemTouchHelper.Down, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
-            _onDelete = onDelete;
+            _onArchive = onArchive;
             _onEdit = onEdit;
+            _onMove = onMove;
+            _onDragEnd = onDragEnd;
             _context = context;
 
-            _deletePaint = new Android.Graphics.Paint
+            _archivePaint = new Android.Graphics.Paint
             {
                 Color = new Android.Graphics.Color(
                     AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorDelete)),
                 AntiAlias = true
             };
-
             _editPaint = new Android.Graphics.Paint
             {
                 Color = new Android.Graphics.Color(
                     AndroidX.Core.Content.ContextCompat.GetColor(Application.Context, ResourceConstant.Color.colorEdit)),
                 AntiAlias = true
             };
-
             var textSizePx = TypedValue.ApplyDimension(ComplexUnitType.Dip, 14,
                 context?.Resources?.DisplayMetrics ?? Application.Context.Resources!.DisplayMetrics);
             _textPaint = new Android.Graphics.Paint
@@ -366,7 +436,23 @@ namespace HabitTracker
             _textPaint.SetTypeface(Android.Graphics.Typeface.Create("sans-serif-medium", Android.Graphics.TypefaceStyle.Normal));
         }
 
-        public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) => false;
+        public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder,
+            RecyclerView.ViewHolder target)
+        {
+            _isDragging = true;
+            _onMove(viewHolder.BindingAdapterPosition, target.BindingAdapterPosition);
+            return true;
+        }
+
+        public override void ClearView(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder)
+        {
+            base.ClearView(recyclerView, viewHolder);
+            if (_isDragging)
+            {
+                _isDragging = false;
+                _onDragEnd();
+            }
+        }
 
         public override float GetSwipeThreshold(RecyclerView.ViewHolder viewHolder) => 0.2f;
 
@@ -375,24 +461,17 @@ namespace HabitTracker
             var position = viewHolder.BindingAdapterPosition;
             if (direction == ItemTouchHelper.Left)
             {
-                _onDelete(position);
+                _onArchive(position);
             }
             else if (direction == ItemTouchHelper.Right)
             {
-                // Snap the item back before showing the dialog so the list looks clean
                 viewHolder.ItemView.TranslationX = 0f;
                 _onEdit(position);
             }
         }
 
-        public override void OnChildDraw(
-            Android.Graphics.Canvas c,
-            RecyclerView recyclerView,
-            RecyclerView.ViewHolder viewHolder,
-            float dX,
-            float dY,
-            int actionState,
-            bool isCurrentlyActive)
+        public override void OnChildDraw(Android.Graphics.Canvas c, RecyclerView recyclerView,
+            RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, bool isCurrentlyActive)
         {
             if (actionState != ItemTouchHelper.ActionStateSwipe)
             {
@@ -407,57 +486,37 @@ namespace HabitTracker
 
             if (dX < 0)
             {
-                // Swiping left — reveal Delete on the right
                 var maxDisplacement = -itemView.Width * 0.2f;
                 var currentDx = Math.Max(dX, maxDisplacement);
                 var backgroundWidth = Math.Abs(currentDx);
                 var left = itemView.Right + currentDx;
-
-                var background = new Android.Graphics.RectF(
-                    left - cornerRadius,
-                    itemView.Top + verticalMargin,
-                    itemView.Right - horizontalMargin,
-                    itemView.Bottom - verticalMargin);
-                c.DrawRoundRect(background, cornerRadius, cornerRadius, _deletePaint);
-
-                DrawLabel(c, _context?.GetString(ResourceConstant.String.delete) ?? "Delete",
-                    left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, background);
-
+                var bg = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + verticalMargin,
+                    itemView.Right - horizontalMargin, itemView.Bottom - verticalMargin);
+                c.DrawRoundRect(bg, cornerRadius, cornerRadius, _archivePaint);
+                DrawLabel(c, _context?.GetString(ResourceConstant.String.archive) ?? "Archive",
+                    left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, bg);
                 base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
             }
             else if (dX > 0)
             {
-                // Swiping right — reveal Edit on the left
                 var maxDisplacement = itemView.Width * 0.2f;
                 var currentDx = Math.Min(dX, maxDisplacement);
-                var backgroundWidth = currentDx;
                 var right = itemView.Left + currentDx;
-
-                var background = new Android.Graphics.RectF(
-                    itemView.Left + horizontalMargin,
-                    itemView.Top + verticalMargin,
-                    right + cornerRadius,
-                    itemView.Bottom - verticalMargin);
-                c.DrawRoundRect(background, cornerRadius, cornerRadius, _editPaint);
-
+                var bg = new Android.Graphics.RectF(itemView.Left + horizontalMargin, itemView.Top + verticalMargin,
+                    right + cornerRadius, itemView.Bottom - verticalMargin);
+                c.DrawRoundRect(bg, cornerRadius, cornerRadius, _editPaint);
                 DrawLabel(c, _context?.GetString(ResourceConstant.String.edit) ?? "Edit",
-                    itemView.Left + horizontalMargin + backgroundWidth / 2f, itemView, background);
-
+                    itemView.Left + horizontalMargin + currentDx / 2f, itemView, bg);
                 base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
             }
         }
 
-        private void DrawLabel(
-            Android.Graphics.Canvas c,
-            string text,
-            float centerX,
-            View itemView,
-            Android.Graphics.RectF clipRect)
+        private void DrawLabel(Android.Graphics.Canvas c, string text, float centerX,
+            View itemView, Android.Graphics.RectF clipRect)
         {
             var textBounds = new Android.Graphics.Rect();
             _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
             var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
-
             c.Save();
             c.ClipRect(clipRect);
             c.DrawText(text, centerX, textY, _textPaint);

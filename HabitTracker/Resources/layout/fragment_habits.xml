@@ -54,4 +54,12 @@
         android:text="@string/add_habit"
         style="@style/ModernButton" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/view_archived_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/archived_habits"
+        style="@style/SecondaryButton"
+        android:layout_marginTop="8dp" />
+
 </LinearLayout>
