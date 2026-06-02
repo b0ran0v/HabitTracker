@@ -38,7 +38,7 @@ namespace HabitTracker
                 var callback = new HabitSwipeCallback(
                     onDelete: async void (position) =>
                     {
-                        if (_database == null || position >= _habits.Count) return;
+                        if (position >= _habits.Count) return;
                         var habit = _habits[position];
                         await _database.DeleteHabitAsync(habit);
                         await _database.DeleteHabitCompletionsForHabitAsync(habit.Id);
@@ -183,10 +183,7 @@ namespace HabitTracker
             var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
 
             // Pre-fill with existing habit data
-            if (titleView != null)
-            {
-                titleView.Text = GetString(ResourceConstant.String.edit_habit);
-            }
+            titleView?.Text = GetString(ResourceConstant.String.edit_habit);
             if (input != null)
             {
                 input.Text = habit.Name;
@@ -253,16 +250,11 @@ namespace HabitTracker
                 var habitName = input?.Text;
                 if (string.IsNullOrWhiteSpace(habitName))
                 {
-                    if (inputLayout != null)
-                    {
-                        inputLayout.Error = GetString(ResourceConstant.String.enter_habit_name_error);
-                    }
+                    inputLayout?.Error = GetString(ResourceConstant.String.enter_habit_name_error);
                     return;
                 }
 
-                habit.Name = habitName;
-                habit.ColorHex = selectedColorHex;
-                await _database.UpdateHabitAsync(habit);
+                await _database.UpdateHabitAsync(new Habit { Id = habit.Id, Name = habitName, ColorHex = selectedColorHex });
                 LoadHabits();
                 dialog.Dismiss();
             };
@@ -453,7 +445,7 @@ namespace HabitTracker
             Android.Graphics.Canvas c,
             string text,
             float centerX,
-            Android.Views.View itemView,
+            View itemView,
             Android.Graphics.RectF clipRect)
         {
             var textBounds = new Android.Graphics.Rect();

@@ -196,16 +196,16 @@ namespace HabitTracker
             if (position >= _completions.Count) return;
 
             var completion = _completions[position];
-            if (completion.CompletedDate.HasValue)
+            var updated = new HabitCompletion
             {
-                completion.CompletedDate = null;
-            }
-            else
-            {
-                completion.CompletedDate = DateTime.Now;
-            }
+                Id = completion.Id,
+                HabitId = completion.HabitId,
+                CreatedDate = completion.CreatedDate,
+                DueDate = completion.DueDate,
+                CompletedDate = completion.CompletedDate.HasValue ? null : DateTime.Now
+            };
 
-            await _database.UpdateHabitCompletionAsync(completion);
+            await _database.UpdateHabitCompletionAsync(updated);
             LoadData();
         }
 
