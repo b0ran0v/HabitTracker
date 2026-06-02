@@ -10,7 +10,7 @@ using Fragment = AndroidX.Fragment.App.Fragment;
 
 namespace HabitTracker;
 
-[Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = false)]
+[Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
 public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelectedListener
 {
     private BottomNavigationView? _navigation;
