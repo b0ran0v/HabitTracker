@@ -2,7 +2,6 @@
 using Android.Content;
 using Android.OS;
 using AndroidX.AppCompat.App;
-using Java.Util;
 
 namespace HabitTracker
 {
@@ -20,27 +19,6 @@ namespace HabitTracker
                 _ => AppCompatDelegate.ModeNightFollowSystem
             };
             AppCompatDelegate.DefaultNightMode = nightMode;
-        }
-
-        protected override void AttachBaseContext(Context? @base)
-        {
-            if (@base == null)
-            {
-                base.AttachBaseContext(@base);
-                return;
-            }
-            var prefs = @base.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
-            var lang = prefs?.GetString("app_language", null);
-            if (lang == null)
-            {
-                base.AttachBaseContext(@base);
-                return;
-            }
-            var locale = Locale.ForLanguageTag(lang)!;
-            Locale.Default = locale;
-            var config = new Android.Content.Res.Configuration(@base.Resources!.Configuration);
-            config.SetLocale(locale);
-            base.AttachBaseContext(@base.CreateConfigurationContext(config));
         }
 
         protected override void OnCreate(Bundle? savedInstanceState)

@@ -20,8 +20,10 @@
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
       <AndroidMaxPageSize>0x4000</AndroidMaxPageSize>
-      <TrimmerRootDescriptor>Linker.xml</TrimmerRootDescriptor>
     </PropertyGroup>
+    <ItemGroup Condition=" '$(Configuration)' == 'Release' ">
+        <TrimmerRootDescriptor Include="Linker.xml" />
+    </ItemGroup>
     <ItemGroup>
         <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
         <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.10" />
