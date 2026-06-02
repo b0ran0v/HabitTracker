@@ -1,6 +1,4 @@
-﻿using _Microsoft.Android.Resource.Designer;
-using Android.Content;
-using Android.OS;
+﻿using Android.Content;
 using AndroidX.AppCompat.App;
 
 namespace HabitTracker
