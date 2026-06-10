@@ -74,20 +74,33 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         ApplyPersistedNightMode();
-        base.OnCreate(savedInstanceState);
-        SetContentView(ResourceConstant.Layout.activity_main);
 
+        // The database must exist before base.OnCreate: the FragmentManager restores
+        // fragments there, and their parameterless constructors read SharedDatabase.
         var dbFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
         Directory.CreateDirectory(dbFolder);
         var dbPath = Path.Combine(dbFolder, "habits.db");
         _database = new Database(dbPath);
         SharedDatabase = _database;
 
+        base.OnCreate(savedInstanceState);
+        SetContentView(ResourceConstant.Layout.activity_main);
+
         _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
         if (_navigation == null) return;
         _navigation.SetOnItemSelectedListener(this);
 
-        if (savedInstanceState != null) return;
+        if (savedInstanceState != null)
+        {
+            // Re-bind references to the fragments the FragmentManager restored,
+            // so navigation reuses them instead of stacking new instances.
+            _trackerFragment = (TrackerFragment?)SupportFragmentManager.FindFragmentByTag(nameof(TrackerFragment));
+            _habitsFragment = (HabitsFragment?)SupportFragmentManager.FindFragmentByTag(nameof(HabitsFragment));
+            _settingsFragment = (SettingsFragment?)SupportFragmentManager.FindFragmentByTag(nameof(SettingsFragment));
+            _activeFragment = new Fragment?[] { _trackerFragment, _habitsFragment, _settingsFragment }
+                .FirstOrDefault(f => f is { IsHidden: false });
+            return;
+        }
         _trackerFragment = new TrackerFragment(_database);
         ShowFragment(_trackerFragment);
         _navigation.SelectedItemId = ResourceConstant.Id.navigation_tracker;
@@ -161,17 +174,18 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
     private bool ShowFragment(Fragment? fragment)
     {
         if (fragment == null) return false;
+        if (ReferenceEquals(fragment, _activeFragment)) return true;
 
         var tx = SupportFragmentManager.BeginTransaction();
         if (_activeFragment != null) tx.Hide(_activeFragment);
 
         if (!fragment.IsAdded)
-            tx.Add(ResourceConstant.Id.fragment_container, fragment);
+            tx.Add(ResourceConstant.Id.fragment_container, fragment, fragment.GetType().Name);
         else
             tx.Show(fragment);
 
         _activeFragment = fragment;
-        tx.Commit();
+        tx.CommitNow();
         return true;
     }
 }

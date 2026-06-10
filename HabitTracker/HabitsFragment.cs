@@ -12,6 +12,9 @@ namespace HabitTracker
 {
     public class HabitsFragment(Database database) : AndroidX.Fragment.App.Fragment
     {
+        // Required by the FragmentManager when restoring state (e.g. after Activity.Recreate)
+        public HabitsFragment() : this(MainActivity.SharedDatabase!) { }
+
         private RecyclerView? _recyclerView;
         private View? _emptyState;
         private Button? _addButton;
