@@ -48,35 +48,27 @@ namespace HabitTracker
                 var callback = new HabitSwipeCallback(
                     onArchive: async void (position) =>
                     {
-                        if (position >= _habits.Count) return;
-                        var habit = _habits[position];
+                        var habit = _adapter?.GetHabitAt(position);
+                        if (habit == null) return;
                         await _database.ArchiveHabitAsync(habit);
                         Activity?.RunOnUiThread(() =>
                         {
                             if (Activity == null) return;
-                            var idx = _habits.IndexOf(habit);
-                            if (idx < 0) return;
-                            _habits.RemoveAt(idx);
-                            _adapter?.NotifyItemRemoved(idx);
+                            _habits.Remove(habit);
+                            _adapter?.UpdateHabits(_habits);
                             _emptyState?.Visibility = _habits.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
                         });
                     },
                     onEdit: (position) =>
                     {
-                        if (position >= _habits.Count) return;
-                        ShowEditHabitDialog(_habits[position]);
+                        var habit = _adapter?.GetHabitAt(position);
+                        if (habit != null) ShowEditHabitDialog(habit);
                     },
-                    onMove: (fromPos, toPos) =>
-                    {
-                        if (fromPos < 0 || toPos < 0 || fromPos >= _habits.Count || toPos >= _habits.Count) return;
-                        var item = _habits[fromPos];
-                        _habits.RemoveAt(fromPos);
-                        _habits.Insert(toPos, item);
-                        _adapter?.NotifyItemMoved(fromPos, toPos);
-                    },
+                    onMove: (fromPos, toPos) => _adapter?.MoveItem(fromPos, toPos) ?? false,
                     onDragEnd: async void () =>
                     {
-                        await _database.UpdateHabitSortOrdersAsync(_habits);
+                        if (_adapter == null) return;
+                        await _database.UpdateHabitSortOrdersAsync(_adapter.GetHabitsInDisplayOrder());
                     },
                     context: Context);
 
@@ -150,6 +142,8 @@ namespace HabitTracker
             var dialogView = LayoutInflater.From(Activity)?.Inflate(ResourceConstant.Layout.dialog_add_habit, null);
             var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
             var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
+            var categoryInput = dialogView?.FindViewById<AutoCompleteTextView>(ResourceConstant.Id.habit_category_input);
+            SetupCategorySuggestions(categoryInput);
 
             var selectedColorHex = "#5C6BC0"; // Default
             var colorOptions = new[]
@@ -216,7 +210,12 @@ namespace HabitTracker
                     return;
                 }
 
-                var habit = new Habit { Name = habitName, ColorHex = selectedColorHex };
+                var habit = new Habit
+                {
+                    Name = habitName,
+                    ColorHex = selectedColorHex,
+                    Category = categoryInput?.Text?.Trim() ?? string.Empty
+                };
                 await _database.SaveHabitAsync(habit);
                 LoadHabits();
                 dialog.Dismiss();
@@ -234,6 +233,8 @@ namespace HabitTracker
             var titleView = dialogView?.FindViewById<TextView>(ResourceConstant.Id.dialog_title);
             var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
             var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
+            var categoryInput = dialogView?.FindViewById<AutoCompleteTextView>(ResourceConstant.Id.habit_category_input);
+            SetupCategorySuggestions(categoryInput);
 
             // Pre-fill with existing habit data
             titleView?.Text = GetString(ResourceConstant.String.edit_habit);
@@ -241,6 +242,11 @@ namespace HabitTracker
             {
                 input.Text = habit.Name;
                 input.SetSelection(habit.Name.Length);
+            }
+            if (categoryInput != null)
+            {
+                categoryInput.Text = habit.Category;
+                categoryInput.DismissDropDown();
             }
 
             var selectedColorHex = habit.ColorHex;
@@ -307,48 +313,138 @@ namespace HabitTracker
                     return;
                 }
 
-                await _database.UpdateHabitAsync(new Habit { Id = habit.Id, Name = habitName, ColorHex = selectedColorHex });
+                await _database.UpdateHabitAsync(new Habit
+                {
+                    Id = habit.Id,
+                    Name = habitName,
+                    ColorHex = selectedColorHex,
+                    SortOrder = habit.SortOrder,
+                    IsArchived = habit.IsArchived,
+                    Category = categoryInput?.Text?.Trim() ?? string.Empty
+                });
                 LoadHabits();
                 dialog.Dismiss();
             };
+        }
+
+        private void SetupCategorySuggestions(AutoCompleteTextView? categoryInput)
+        {
+            if (categoryInput == null || Activity == null) return;
+            var categories = _habits
+                .Select(h => h.Category.Trim())
+                .Where(c => c.Length > 0)
+                .Distinct()
+                .OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            if (categories.Length > 0)
+                categoryInput.Adapter = new ArrayAdapter(Activity, Android.Resource.Layout.SimpleDropDownItem1Line, categories);
         }
     }
 
     public class HabitAdapter : RecyclerView.Adapter
     {
-        private List<Habit> _habits;
+        public const int ViewTypeHeader = 0;
+        private const int ViewTypeHabit = 1;
+
+        // A row is either a category header (Header != null) or a habit entry
+        private class Row
+        {
+            public string? Header;
+            public Habit? Habit;
+        }
+
+        private List<Row> _rows;
         private readonly Action<RecyclerView.ViewHolder> _onStartDrag;
 
         public HabitAdapter(List<Habit> habits, Action<RecyclerView.ViewHolder> onStartDrag)
         {
-            _habits = habits;
+            _rows = BuildRows(habits);
             _onStartDrag = onStartDrag;
+        }
+
+        // Uncategorized habits come first without a header, then each category
+        // alphabetically under its own header. Within a group the input order is kept.
+        private static List<Row> BuildRows(List<Habit> habits)
+        {
+            var rows = new List<Row>();
+            foreach (var group in habits
+                         .GroupBy(h => h.Category.Trim())
+                         .OrderBy(g => g.Key.Length == 0 ? 0 : 1)
+                         .ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (group.Key.Length > 0)
+                    rows.Add(new Row { Header = group.Key });
+                rows.AddRange(group.Select(h => new Row { Habit = h }));
+            }
+            return rows;
         }
 
         public void UpdateHabits(List<Habit> habits)
         {
-            var diff = DiffUtil.CalculateDiff(new HabitDiffCallback(_habits, habits));
-            _habits = habits;
+            var newRows = BuildRows(habits);
+            var diff = DiffUtil.CalculateDiff(new RowDiffCallback(_rows, newRows));
+            _rows = newRows;
             diff.DispatchUpdatesTo(this);
         }
 
-        private class HabitDiffCallback(List<Habit> oldList, List<Habit> newList) : DiffUtil.Callback
+        public Habit? GetHabitAt(int position) =>
+            position >= 0 && position < _rows.Count ? _rows[position].Habit : null;
+
+        public List<Habit> GetHabitsInDisplayOrder() =>
+            _rows.Where(r => r.Habit != null).Select(r => r.Habit!).ToList();
+
+        // Drag is only allowed between habit rows of the same category
+        public bool MoveItem(int fromPos, int toPos)
         {
-            public override int OldListSize => oldList.Count;
-            public override int NewListSize => newList.Count;
-            public override bool AreItemsTheSame(int oldPos, int newPos) =>
-                oldList[oldPos].Id == newList[newPos].Id;
-            public override bool AreContentsTheSame(int oldPos, int newPos) =>
-                oldList[oldPos].Name == newList[newPos].Name &&
-                oldList[oldPos].ColorHex == newList[newPos].ColorHex;
+            if (fromPos < 0 || toPos < 0 || fromPos >= _rows.Count || toPos >= _rows.Count) return false;
+            var from = _rows[fromPos].Habit;
+            var to = _rows[toPos].Habit;
+            if (from == null || to == null) return false;
+            if (from.Category.Trim() != to.Category.Trim()) return false;
+            var row = _rows[fromPos];
+            _rows.RemoveAt(fromPos);
+            _rows.Insert(toPos, row);
+            NotifyItemMoved(fromPos, toPos);
+            return true;
         }
 
-        public override int ItemCount => _habits.Count;
+        private class RowDiffCallback(List<Row> oldRows, List<Row> newRows) : DiffUtil.Callback
+        {
+            public override int OldListSize => oldRows.Count;
+            public override int NewListSize => newRows.Count;
+            public override bool AreItemsTheSame(int oldPos, int newPos)
+            {
+                var o = oldRows[oldPos];
+                var n = newRows[newPos];
+                if (o.Header != null || n.Header != null) return o.Header == n.Header;
+                return o.Habit!.Id == n.Habit!.Id;
+            }
+            public override bool AreContentsTheSame(int oldPos, int newPos)
+            {
+                var o = oldRows[oldPos];
+                var n = newRows[newPos];
+                if (o.Header != null) return true; // header text equality is checked in AreItemsTheSame
+                return o.Habit!.Name == n.Habit!.Name &&
+                       o.Habit.ColorHex == n.Habit.ColorHex;
+            }
+        }
+
+        public override int ItemCount => _rows.Count;
+
+        public override int GetItemViewType(int position) =>
+            _rows[position].Header != null ? ViewTypeHeader : ViewTypeHabit;
 
         public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
         {
+            var row = _rows[position];
+            if (holder is HeaderViewHolder headerHolder)
+            {
+                headerHolder.HeaderText.Text = row.Header;
+                return;
+            }
+
             var habitHolder = (HabitViewHolder)holder;
-            var habit = _habits[position];
+            var habit = row.Habit!;
             habitHolder.HabitName.Text = habit.Name;
 
             if (!string.IsNullOrEmpty(habit.ColorHex))
@@ -365,10 +461,23 @@ namespace HabitTracker
 
         public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
         {
+            if (viewType == ViewTypeHeader)
+            {
+                var headerView = LayoutInflater.From(parent.Context)
+                    ?.Inflate(ResourceConstant.Layout.item_category_header, parent, false);
+                return new HeaderViewHolder(headerView!);
+            }
+
             var view = LayoutInflater.From(parent.Context)?.Inflate(ResourceConstant.Layout.item_habit, parent, false);
             var holder = new HabitViewHolder(view!);
             holder.DragHandle.SetOnTouchListener(new DragHandleTouchListener(holder, _onStartDrag));
             return holder;
+        }
+
+        private class HeaderViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
+        {
+            public TextView HeaderText { get; } =
+                itemView.FindViewById<TextView>(ResourceConstant.Id.category_header_text)!;
         }
 
         private class DragHandleTouchListener(RecyclerView.ViewHolder holder,
@@ -397,7 +506,7 @@ namespace HabitTracker
     {
         private readonly Action<int> _onArchive;
         private readonly Action<int> _onEdit;
-        private readonly Action<int, int> _onMove;
+        private readonly Func<int, int, bool> _onMove;
         private readonly Action _onDragEnd;
         private bool _isDragging;
         private readonly Android.Graphics.Paint _archivePaint;
@@ -405,7 +514,7 @@ namespace HabitTracker
         private readonly Android.Graphics.Paint _textPaint;
         private readonly Context? _context;
 
-        public HabitSwipeCallback(Action<int> onArchive, Action<int> onEdit, Action<int, int> onMove,
+        public HabitSwipeCallback(Action<int> onArchive, Action<int> onEdit, Func<int, int, bool> onMove,
             Action onDragEnd, Context? context)
             : base(ItemTouchHelper.Up | ItemTouchHelper.Down, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
@@ -442,10 +551,17 @@ namespace HabitTracker
         public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder,
             RecyclerView.ViewHolder target)
         {
-            _isDragging = true;
-            _onMove(viewHolder.BindingAdapterPosition, target.BindingAdapterPosition);
-            return true;
+            var moved = _onMove(viewHolder.BindingAdapterPosition, target.BindingAdapterPosition);
+            if (moved) _isDragging = true;
+            return moved;
         }
+
+        // Category headers are neither draggable nor swipeable
+        public override int GetDragDirs(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) =>
+            viewHolder.ItemViewType == HabitAdapter.ViewTypeHeader ? 0 : base.GetDragDirs(recyclerView, viewHolder);
+
+        public override int GetSwipeDirs(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) =>
+            viewHolder.ItemViewType == HabitAdapter.ViewTypeHeader ? 0 : base.GetSwipeDirs(recyclerView, viewHolder);
 
         public override void ClearView(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder)
         {

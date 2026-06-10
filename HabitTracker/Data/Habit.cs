@@ -11,4 +11,5 @@ public class Habit
     public string ColorHex { get; set; } = "#5C6BC0";
     public int SortOrder { get; set; }
     public bool IsArchived { get; set; }
+    public string Category { get; set; } = string.Empty;
 }

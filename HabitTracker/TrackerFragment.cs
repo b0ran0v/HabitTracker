@@ -54,25 +54,21 @@ namespace HabitTracker
             {
                 _recyclerView.SetLayoutManager(new LinearLayoutManager(Activity));
                 _adapter = new TrackerAdapter(_habits, _completions,
-                    async void (position) => { await OnItemClick(position); }, () => _selectedDate);
+                    async void (position) => { await OnItemClick(position); });
                 _recyclerView.SetAdapter(_adapter);
 
                 var callback = new TrackerSwipeCallback(async void (position) =>
                     {
-                        if (_database == null || position >= _completions.Count) return;
-                        var completion = _completions[position];
+                        var completion = _adapter?.GetCompletionAt(position);
+                        if (completion == null) return;
                         await _database.DeleteHabitCompletionAsync(completion);
                         Activity?.RunOnUiThread(() =>
                         {
                             if (Activity == null) return;
-                            var idx = _completions.IndexOf(completion);
-                            if (idx < 0) return;
-                            _habits.RemoveAt(idx);
-                            _completions.RemoveAt(idx);
-                            _adapter?.NotifyItemRemoved(idx);
+                            LoadData();
                         });
                     }, async void (position) => { await OnItemClick(position); },
-                    position => position < _completions.Count && _completions[position].CompletedDate.HasValue,
+                    position => _adapter?.GetCompletionAt(position)?.CompletedDate.HasValue == true,
                     Context);
 
                 var itemTouchHelper = new ItemTouchHelper(callback);
@@ -210,9 +206,9 @@ namespace HabitTracker
 
         private async Task OnItemClick(int position)
         {
-            if (position >= _completions.Count) return;
+            var completion = _adapter?.GetCompletionAt(position);
+            if (completion == null) return;
 
-            var completion = _completions[position];
             var isCompleting = !completion.CompletedDate.HasValue;
 
             if (isCompleting)
@@ -405,25 +401,52 @@ namespace HabitTracker
 
     public class TrackerAdapter : RecyclerView.Adapter
     {
+        public const int ViewTypeHeader = 0;
+        private const int ViewTypeItem = 1;
+
+        // A row is either a category header (Header != null) or a habit/completion pair
+        private class Row
+        {
+            public string? Header;
+            public Habit? Habit;
+            public HabitCompletion? Completion;
+        }
+
         private readonly List<Habit> _habits;
         private readonly List<HabitCompletion> _completions;
+        private List<Row> _rows = [];
         private readonly Action<int> _onItemClick;
-        private readonly Func<DateTime> _getDate;
 
-        public TrackerAdapter(List<Habit> habits, List<HabitCompletion> completions, Action<int> onItemClick,
-            Func<DateTime> getDate)
+        public TrackerAdapter(List<Habit> habits, List<HabitCompletion> completions, Action<int> onItemClick)
         {
             _habits = habits;
             _completions = completions;
             _onItemClick = onItemClick;
-            _getDate = getDate;
+        }
+
+        // Uncategorized habits come first without a header, then each category
+        // alphabetically under its own header. Within a group the input order is kept.
+        private static List<Row> BuildRows(List<Habit> habits, List<HabitCompletion> completions)
+        {
+            var rows = new List<Row>();
+            foreach (var group in habits
+                         .Select((h, i) => new Row { Habit = h, Completion = completions[i] })
+                         .GroupBy(r => r.Habit!.Category.Trim())
+                         .OrderBy(g => g.Key.Length == 0 ? 0 : 1)
+                         .ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (group.Key.Length > 0)
+                    rows.Add(new Row { Header = group.Key });
+                rows.AddRange(group);
+            }
+            return rows;
         }
 
         public void UpdateData(List<Habit> newHabits, List<HabitCompletion> newCompletions)
         {
-            var oldHabits = new List<Habit>(_habits);
-            var oldCompletions = new List<HabitCompletion>(_completions);
-            var diff = DiffUtil.CalculateDiff(new TrackerDiffCallback(oldHabits, oldCompletions, newHabits, newCompletions));
+            var newRows = BuildRows(newHabits, newCompletions);
+            var diff = DiffUtil.CalculateDiff(new TrackerDiffCallback(_rows, newRows));
+            _rows = newRows;
             _habits.Clear();
             _habits.AddRange(newHabits);
             _completions.Clear();
@@ -431,34 +454,54 @@ namespace HabitTracker
             diff.DispatchUpdatesTo(this);
         }
 
-        private class TrackerDiffCallback(
-            List<Habit> oldHabits, List<HabitCompletion> oldCompletions,
-            List<Habit> newHabits, List<HabitCompletion> newCompletions) : DiffUtil.Callback
+        public HabitCompletion? GetCompletionAt(int position) =>
+            position >= 0 && position < _rows.Count ? _rows[position].Completion : null;
+
+        private class TrackerDiffCallback(List<Row> oldRows, List<Row> newRows) : DiffUtil.Callback
         {
-            public override int OldListSize => oldHabits.Count;
-            public override int NewListSize => newHabits.Count;
-            public override bool AreItemsTheSame(int oldPos, int newPos) =>
-                oldCompletions[oldPos].Id == newCompletions[newPos].Id;
-            public override bool AreContentsTheSame(int oldPos, int newPos) =>
-                oldHabits[oldPos].Name == newHabits[newPos].Name &&
-                oldHabits[oldPos].ColorHex == newHabits[newPos].ColorHex &&
-                oldCompletions[oldPos].CompletedDate.HasValue == newCompletions[newPos].CompletedDate.HasValue;
+            public override int OldListSize => oldRows.Count;
+            public override int NewListSize => newRows.Count;
+            public override bool AreItemsTheSame(int oldPos, int newPos)
+            {
+                var o = oldRows[oldPos];
+                var n = newRows[newPos];
+                if (o.Header != null || n.Header != null) return o.Header == n.Header;
+                return o.Completion!.Id == n.Completion!.Id;
+            }
+            public override bool AreContentsTheSame(int oldPos, int newPos)
+            {
+                var o = oldRows[oldPos];
+                var n = newRows[newPos];
+                if (o.Header != null) return true; // header text equality is checked in AreItemsTheSame
+                return o.Habit!.Name == n.Habit!.Name &&
+                       o.Habit.ColorHex == n.Habit.ColorHex &&
+                       o.Completion!.CompletedDate.HasValue == n.Completion!.CompletedDate.HasValue &&
+                       o.Completion.Notes == n.Completion.Notes;
+            }
         }
 
-        public override int ItemCount => _habits.Count;
+        public override int ItemCount => _rows.Count;
+
+        public override int GetItemViewType(int position) =>
+            _rows[position].Header != null ? ViewTypeHeader : ViewTypeItem;
 
         public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
         {
+            var row = _rows[position];
+            if (holder is HeaderViewHolder headerHolder)
+            {
+                headerHolder.HeaderText.Text = row.Header;
+                return;
+            }
+
             var trackerHolder = (TrackerViewHolder)holder;
-            var habit = _habits[position];
-            var date = _getDate().Date;
-            var isCompleted = _completions.Any(c =>
-                c.HabitId == habit.Id && c.CompletedDate.HasValue && c.CompletedDate.Value.Date == date);
+            var habit = row.Habit!;
+            var isCompleted = row.Completion!.CompletedDate.HasValue;
 
             trackerHolder.HabitName.Text = habit.Name;
             trackerHolder.Checkbox.Checked = isCompleted;
 
-            var notes = _completions[position].Notes;
+            var notes = row.Completion.Notes;
             if (!string.IsNullOrWhiteSpace(notes))
             {
                 trackerHolder.HabitNotes.Text = notes;
@@ -501,6 +544,13 @@ namespace HabitTracker
 
         public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
         {
+            if (viewType == ViewTypeHeader)
+            {
+                var headerView = LayoutInflater.From(parent.Context)
+                    ?.Inflate(ResourceConstant.Layout.item_category_header, parent, false);
+                return new HeaderViewHolder(headerView!);
+            }
+
             var view = LayoutInflater.From(parent.Context)
                 ?.Inflate(ResourceConstant.Layout.item_tracker_habit, parent, false);
             var holder = new TrackerViewHolder(view!);
@@ -523,6 +573,12 @@ namespace HabitTracker
             };
 
             return holder;
+        }
+
+        private class HeaderViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
+        {
+            public TextView HeaderText { get; } =
+                itemView.FindViewById<TextView>(ResourceConstant.Id.category_header_text)!;
         }
 
         private class TrackerViewHolder(View itemView) : RecyclerView.ViewHolder(itemView)
@@ -595,6 +651,10 @@ namespace HabitTracker
 
         public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder,
             RecyclerView.ViewHolder target) => false;
+
+        // Category headers are not swipeable
+        public override int GetSwipeDirs(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) =>
+            viewHolder.ItemViewType == TrackerAdapter.ViewTypeHeader ? 0 : base.GetSwipeDirs(recyclerView, viewHolder);
 
         public override float GetSwipeThreshold(RecyclerView.ViewHolder viewHolder) => 0.2f;
 

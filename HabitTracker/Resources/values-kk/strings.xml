@@ -36,6 +36,7 @@
     <string name="toggle_theme">Тақырыпты ауыстыру</string>
     <string name="habit_name_hint">Әдеттің атауы</string>
     <string name="choose_color">Түсті таңдаңыз</string>
+    <string name="category_hint">Санат (міндетті емес)</string>
     <string name="no_habits_yet">Әдеттер жоқ — бастау үшін \'Әдет қосу\' батырмасын басыңыз</string>
     <string name="no_tracked_habits">Бұл күнге әдеттер жоқ — қосу үшін төмендегі батырманы басыңыз</string>
     <string name="copy_week_confirm_title">Осы аптаға көшіру?</string>
