@@ -1,0 +1,4 @@
+<resources>
+    <!-- Light theme: dark status/navigation bar icons so they are visible on the light background -->
+    <bool name="lightSystemBars">true</bool>
+</resources>

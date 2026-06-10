@@ -11,8 +11,11 @@
         <item name="colorSecondaryVariant">@color/colorAccent</item>
         <item name="colorOnSecondary">@color/surfaceColor</item>
         
-        <!-- Status bar color. -->
+        <!-- Status bar color. (Ignored on API 35+ where edge-to-edge is enforced) -->
         <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+        <!-- Dark system bar icons in light theme, light icons in dark theme -->
+        <item name="android:windowLightStatusBar">@bool/lightSystemBars</item>
+        <item name="android:windowLightNavigationBar">@bool/lightSystemBars</item>
         
         <!-- Custom colors -->
         <item name="android:windowBackground">@color/backgroundColor</item>
