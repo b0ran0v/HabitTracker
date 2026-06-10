@@ -68,6 +68,10 @@
     <string name="onboarding_title_3">Track Daily Progress</string>
     <string name="onboarding_desc_3">Use the Tracker tab to check off habits each day. Tap or swipe right to mark complete. Swipe left to remove from the day.</string>
     <string name="get_started">Get Started</string>
+    <string name="widget_label">Today\'s Habits</string>
+    <string name="widget_description">Today\'s habit completion progress at a glance</string>
+    <string name="widget_progress">{0} of {1} completed</string>
+    <string name="widget_empty">Nothing tracked today</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
 </resources>

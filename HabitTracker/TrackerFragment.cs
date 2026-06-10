@@ -202,6 +202,9 @@ namespace HabitTracker
                     _emptyState?.Visibility = pairedData.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
                 }
             });
+
+            // Every data mutation funnels through LoadData, so this keeps home screen widgets fresh
+            if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
         }
 
         private async Task OnItemClick(int position)

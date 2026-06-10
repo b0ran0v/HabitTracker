@@ -68,6 +68,10 @@
     <string name="onboarding_title_3">Күнделікті прогрессті қадағалаңыз</string>
     <string name="onboarding_desc_3">«Трекер» қосымшасында әр күн әдеттеріңізді белгілеңіз. Басыңыз немесе оңға сырғытыңыз — орындалды. Солға — күннен алу.</string>
     <string name="get_started">Бастау</string>
+    <string name="widget_label">Бүгінгі әдеттер</string>
+    <string name="widget_description">Бүгінгі әдеттер прогресі</string>
+    <string name="widget_progress">{1} ішінен {0} орындалды</string>
+    <string name="widget_empty">Бүгінге ештеңе бақыланбайды</string>
     <string name="next">Келесі</string>
     <string name="back">Артқа</string>
 </resources>

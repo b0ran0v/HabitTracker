@@ -193,6 +193,7 @@ namespace HabitTracker
                 foreach (var completion in import.Completions ?? [])
                     await _database.SaveHabitCompletionAsync(completion);
 
+                if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
                 Activity.RunOnUiThread(() =>
                     Toast.MakeText(Activity, GetString(ResourceConstant.String.import_success), ToastLength.Short)?.Show());
             }

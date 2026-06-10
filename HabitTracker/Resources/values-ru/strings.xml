@@ -68,6 +68,10 @@
     <string name="onboarding_title_3">Отслеживайте прогресс</string>
     <string name="onboarding_desc_3">Во вкладке «Трекер» отмечайте привычки каждый день. Нажмите или смахните вправо — выполнено. Влево — убрать из дня.</string>
     <string name="get_started">Начать</string>
+    <string name="widget_label">Привычки на сегодня</string>
+    <string name="widget_description">Прогресс привычек за сегодня</string>
+    <string name="widget_progress">{0} из {1} выполнено</string>
+    <string name="widget_empty">На сегодня ничего не отслеживается</string>
     <string name="next">Далее</string>
     <string name="back">Назад</string>
 </resources>
