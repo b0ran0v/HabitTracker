@@ -115,6 +115,17 @@
             style="@style/SecondaryButton" />
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/week_strip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        android:padding="6dp"
+        android:background="@drawable/card_background"
+        android:elevation="4dp" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"

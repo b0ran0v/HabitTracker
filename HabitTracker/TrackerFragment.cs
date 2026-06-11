@@ -28,6 +28,7 @@ namespace HabitTracker
         private Button? _yesterdayButton;
         private Button? _todayButton;
         private Button? _tomorrowButton;
+        private LinearLayout? _weekStrip;
         private readonly List<Habit> _habits = [];
         private readonly List<HabitCompletion> _completions = [];
         private TrackerAdapter? _adapter;
@@ -49,6 +50,7 @@ namespace HabitTracker
             _yesterdayButton = view?.FindViewById<Button>(ResourceConstant.Id.yesterday_button);
             _todayButton = view?.FindViewById<Button>(ResourceConstant.Id.today_button);
             _tomorrowButton = view?.FindViewById<Button>(ResourceConstant.Id.tomorrow_button);
+            _weekStrip = view?.FindViewById<LinearLayout>(ResourceConstant.Id.week_strip);
 
             if (_recyclerView != null)
             {
@@ -185,6 +187,7 @@ namespace HabitTracker
             var activeHabits = await _database.GetHabitsAsync();
             var archivedHabits = await _database.GetArchivedHabitsAsync();
             var allHabits = activeHabits.Concat(archivedHabits).ToList();
+            var allCompletions = await _database.GetHabitCompletionsAsync();
 
             var pairedData = completions
                 .Select(c => new { Completion = c, Habit = allHabits.FirstOrDefault(h => h.Id == c.HabitId) })
@@ -200,11 +203,114 @@ namespace HabitTracker
                         pairedData.Select(p => p.Habit!).ToList(),
                         pairedData.Select(p => p.Completion).ToList());
                     _emptyState?.Visibility = pairedData.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
+                    UpdateWeekStrip(allCompletions, allHabits);
                 }
             });
 
             // Every data mutation funnels through LoadData, so this keeps home screen widgets fresh
             if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
+        }
+
+        // Renders the calendar week (Monday-start, matching CopyHabitsForWeek) around the
+        // selected date: day name, day number, and a dot per habit completed on that day.
+        private void UpdateWeekStrip(List<HabitCompletion> allCompletions, List<Habit> allHabits)
+        {
+            if (_weekStrip == null || Context == null) return;
+            _weekStrip.RemoveAllViews();
+
+            var culture = GetCurrentCulture();
+            var colorByHabitId = allHabits.ToDictionary(h => h.Id, h => h.ColorHex);
+            var currentDayOfWeek = (int)_selectedDate.DayOfWeek;
+            var daysToSubtract = currentDayOfWeek == 0 ? 6 : currentDayOfWeek - 1;
+            var startOfWeek = _selectedDate.AddDays(-daysToSubtract).Date;
+
+            var metrics = Context.Resources!.DisplayMetrics;
+            int Dp(float v) => (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, v, metrics);
+            Android.Graphics.Color Res(int id) =>
+                new(AndroidX.Core.Content.ContextCompat.GetColor(Context, id));
+
+            for (var i = 0; i < 7; i++)
+            {
+                var date = startOfWeek.AddDays(i);
+                var isSelected = date == _selectedDate.Date;
+                var isToday = date == DateTime.Today;
+
+                var column = new LinearLayout(Context)
+                {
+                    Orientation = Orientation.Vertical,
+                    LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f)
+                };
+                column.SetGravity(GravityFlags.CenterHorizontal);
+                column.SetPadding(0, Dp(6), 0, Dp(6));
+                if (isSelected)
+                {
+                    var pill = new GradientDrawable();
+                    pill.SetColor(Res(ResourceConstant.Color.colorPrimary));
+                    pill.SetCornerRadius(Dp(12));
+                    column.Background = pill;
+                }
+
+                var dayName = new TextView(Context)
+                {
+                    Text = culture.DateTimeFormat.AbbreviatedDayNames[(int)date.DayOfWeek]
+                        .TrimEnd('.').ToUpper(culture),
+                    TextSize = 10
+                };
+                dayName.SetTextColor(isSelected ? Android.Graphics.Color.White
+                    : Res(ResourceConstant.Color.textColorSecondary));
+                column.AddView(dayName);
+
+                var dayNumber = new TextView(Context) { Text = date.Day.ToString(), TextSize = 14 };
+                dayNumber.SetTypeface(null, Android.Graphics.TypefaceStyle.Bold);
+                dayNumber.SetTextColor(isSelected ? Android.Graphics.Color.White
+                    : isToday ? Res(ResourceConstant.Color.colorPrimary)
+                    : Res(ResourceConstant.Color.textColorPrimary));
+                column.AddView(dayNumber);
+
+                var dots = new LinearLayout(Context)
+                {
+                    Orientation = Orientation.Horizontal,
+                    LayoutParameters = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WrapContent, Dp(9)) { TopMargin = Dp(3) }
+                };
+                dots.SetGravity(GravityFlags.Center);
+
+                var completedColors = allCompletions
+                    .Where(c => c.DueDate.Date == date && c.CompletedDate.HasValue)
+                    .Select(c => colorByHabitId.GetValueOrDefault(c.HabitId))
+                    .Where(hex => !string.IsNullOrEmpty(hex))
+                    .Take(4)
+                    .ToList();
+                foreach (var hex in completedColors)
+                {
+                    Android.Graphics.Color dotColor;
+                    try { dotColor = Android.Graphics.Color.ParseColor(hex!); }
+                    catch { dotColor = Res(ResourceConstant.Color.colorPrimary); }
+                    if (isSelected) dotColor = Android.Graphics.Color.White;
+
+                    var dot = new View(Context)
+                    {
+                        LayoutParameters = new LinearLayout.LayoutParams(Dp(6), Dp(6))
+                            { LeftMargin = Dp(1), RightMargin = Dp(1) }
+                    };
+                    var circle = new GradientDrawable();
+                    circle.SetShape(ShapeType.Oval);
+                    circle.SetColor(dotColor);
+                    dot.Background = circle;
+                    dots.AddView(dot);
+                }
+                column.AddView(dots);
+
+                var tappedDate = date;
+                column.Click += (_, _) =>
+                {
+                    _selectedDate = tappedDate;
+                    UpdateDateText();
+                    LoadData();
+                };
+
+                _weekStrip.AddView(column);
+            }
         }
 
         private async Task OnItemClick(int position)
