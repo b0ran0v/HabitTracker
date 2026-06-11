@@ -72,6 +72,14 @@
     <string name="widget_description">Прогресс привычек за сегодня</string>
     <string name="widget_progress">{0} из {1} выполнено</string>
     <string name="widget_empty">На сегодня ничего не отслеживается</string>
+    <string name="daily_reminder">Ежедневное напоминание</string>
+    <string name="reminder_off">Напоминание: выкл</string>
+    <string name="reminder_at">Напоминание: {0}</string>
+    <string name="reminder_change_time">Изменить время</string>
+    <string name="reminder_disable">Отключить напоминание</string>
+    <string name="reminder_channel_name">Ежедневные напоминания</string>
+    <string name="reminder_text_generic">Время отметить привычки!</string>
+    <string name="reminder_text_pending">Осталось выполнить сегодня: {0}</string>
     <string name="next">Далее</string>
     <string name="back">Назад</string>
 </resources>

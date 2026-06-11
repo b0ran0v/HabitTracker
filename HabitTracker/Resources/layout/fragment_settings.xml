@@ -47,6 +47,14 @@
             android:layout_marginBottom="12dp"/>
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/daily_reminder_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/reminder_off"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_marginBottom="12dp"/>
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/export_data_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

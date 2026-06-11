@@ -72,6 +72,14 @@
     <string name="widget_description">Бүгінгі әдеттер прогресі</string>
     <string name="widget_progress">{1} ішінен {0} орындалды</string>
     <string name="widget_empty">Бүгінге ештеңе бақыланбайды</string>
+    <string name="daily_reminder">Күнделікті еске салу</string>
+    <string name="reminder_off">Еске салу: өшірулі</string>
+    <string name="reminder_at">Еске салу: {0}</string>
+    <string name="reminder_change_time">Уақытты өзгерту</string>
+    <string name="reminder_disable">Еске салуды өшіру</string>
+    <string name="reminder_channel_name">Күнделікті еске салулар</string>
+    <string name="reminder_text_generic">Әдеттерді белгілеу уақыты келді!</string>
+    <string name="reminder_text_pending">Бүгін орындау қалды: {0}</string>
     <string name="next">Келесі</string>
     <string name="back">Артқа</string>
 </resources>

@@ -19,8 +19,13 @@ namespace HabitTracker
         private const string ThemeDark = "dark";
         private const string ThemeLight = "light";
         private const int ImportRequestCode = 1001;
+        private const string ReminderEnabledKey = "reminder_enabled";
+        private const string ReminderHourKey = "reminder_hour";
+        private const string ReminderMinuteKey = "reminder_minute";
+        private const int NotificationPermissionRequestCode = 1002;
 
         private MaterialButton? _toggleThemeButton;
+        private MaterialButton? _reminderButton;
         private Database? _database;
 
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
@@ -51,6 +56,13 @@ namespace HabitTracker
             var changeLanguageButton = view?.FindViewById<MaterialButton>(ResourceConstant.Id.change_language_button);
             if (changeLanguageButton != null)
                 changeLanguageButton.Click += (_, _) => ShowLanguageDialog();
+
+            _reminderButton = view?.FindViewById<MaterialButton>(ResourceConstant.Id.daily_reminder_button);
+            if (_reminderButton != null)
+            {
+                UpdateReminderButtonText();
+                _reminderButton.Click += (_, _) => OnReminderButtonClick();
+            }
 
             var exportButton = view?.FindViewById<MaterialButton>(ResourceConstant.Id.export_data_button);
             if (exportButton != null)
@@ -117,6 +129,86 @@ namespace HabitTracker
             var prefs = Activity.GetSharedPreferences(PrefsName, FileCreationMode.Private);
             prefs?.Edit()?.PutString("app_language", langCode)?.Commit();
             Activity.Recreate();
+        }
+
+        private void UpdateReminderButtonText()
+        {
+            if (_reminderButton == null || Activity == null) return;
+            var prefs = Activity.GetSharedPreferences(PrefsName, FileCreationMode.Private);
+            if (prefs?.GetBoolean(ReminderEnabledKey, false) == true)
+            {
+                var time = $"{prefs.GetInt(ReminderHourKey, 20):D2}:{prefs.GetInt(ReminderMinuteKey, 0):D2}";
+                _reminderButton.Text = string.Format(GetString(ResourceConstant.String.reminder_at), time);
+            }
+            else
+            {
+                _reminderButton.Text = GetString(ResourceConstant.String.reminder_off);
+            }
+        }
+
+        private void OnReminderButtonClick()
+        {
+            if (Activity == null) return;
+            var prefs = Activity.GetSharedPreferences(PrefsName, FileCreationMode.Private);
+            if (prefs?.GetBoolean(ReminderEnabledKey, false) != true)
+            {
+                ShowReminderTimePicker();
+                return;
+            }
+            var options = new[]
+            {
+                GetString(ResourceConstant.String.reminder_change_time),
+                GetString(ResourceConstant.String.reminder_disable)
+            };
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(GetString(ResourceConstant.String.daily_reminder));
+            builder.SetItems(options, (_, e) =>
+            {
+                if (e.Which == 0) ShowReminderTimePicker();
+                else DisableReminder();
+            });
+            builder.Show();
+        }
+
+        private void ShowReminderTimePicker()
+        {
+            if (Activity == null) return;
+            var prefs = Activity.GetSharedPreferences(PrefsName, FileCreationMode.Private);
+            var hour = prefs?.GetInt(ReminderHourKey, 20) ?? 20;
+            var minute = prefs?.GetInt(ReminderMinuteKey, 0) ?? 0;
+            new TimePickerDialog(Activity, (_, e) => EnableReminder(e.HourOfDay, e.Minute),
+                hour, minute, Android.Text.Format.DateFormat.Is24HourFormat(Activity)).Show();
+        }
+
+        private void EnableReminder(int hour, int minute)
+        {
+            if (Activity == null) return;
+            var prefs = Activity.GetSharedPreferences(PrefsName, FileCreationMode.Private);
+            prefs?.Edit()?
+                .PutBoolean(ReminderEnabledKey, true)?
+                .PutInt(ReminderHourKey, hour)?
+                .PutInt(ReminderMinuteKey, minute)?
+                .Apply();
+            ReminderReceiver.Schedule(Activity, hour, minute);
+            UpdateReminderButtonText();
+
+#pragma warning disable CA1416, CS0618
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu &&
+                Activity.CheckSelfPermission(Android.Manifest.Permission.PostNotifications)
+                    != Android.Content.PM.Permission.Granted)
+            {
+                RequestPermissions([Android.Manifest.Permission.PostNotifications], NotificationPermissionRequestCode);
+            }
+#pragma warning restore CA1416, CS0618
+        }
+
+        private void DisableReminder()
+        {
+            if (Activity == null) return;
+            var prefs = Activity.GetSharedPreferences(PrefsName, FileCreationMode.Private);
+            prefs?.Edit()?.PutBoolean(ReminderEnabledKey, false)?.Apply();
+            ReminderReceiver.Cancel(Activity);
+            UpdateReminderButtonText();
         }
 
         private async Task ExportDataAsync()

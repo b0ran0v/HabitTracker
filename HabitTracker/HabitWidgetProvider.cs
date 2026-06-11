@@ -14,8 +14,8 @@ public class HabitWidgetProvider : AppWidgetProvider
     private const int MaxListedHabits = 5;
     private static Database? _widgetDatabase;
 
-    // The widget may run before MainActivity ever creates SharedDatabase
-    private static Database GetDatabase() =>
+    // The widget or reminder receiver may run before MainActivity ever creates SharedDatabase
+    internal static Database GetDatabase() =>
         MainActivity.SharedDatabase ??
         (_widgetDatabase ??= new Database(Path.Combine(
             System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "habits.db")));
@@ -96,8 +96,8 @@ public class HabitWidgetProvider : AppWidgetProvider
         return views;
     }
 
-    // Widget strings should follow the in-app language preference, not the system locale
-    private static Context GetLocalizedContext(Context context)
+    // Widget and notification strings should follow the in-app language preference, not the system locale
+    internal static Context GetLocalizedContext(Context context)
     {
         var prefs = context.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
         var lang = prefs?.GetString("app_language", null);

@@ -86,6 +86,9 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         base.OnCreate(savedInstanceState);
         SetContentView(ResourceConstant.Layout.activity_main);
 
+        // Alarms do not survive reboots or reinstalls; re-arm the daily reminder if enabled
+        ReminderReceiver.ScheduleFromPrefs(this);
+
         _navigation = FindViewById<BottomNavigationView>(ResourceConstant.Id.bottom_navigation);
         if (_navigation == null) return;
         _navigation.SetOnItemSelectedListener(this);
