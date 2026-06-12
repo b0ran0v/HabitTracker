@@ -41,6 +41,11 @@
     <string name="new_category">+ Жаңа санат…</string>
     <string name="new_category_title">Жаңа санат</string>
     <string name="category_name_hint">Санат атауы</string>
+    <string name="categories">Санаттар</string>
+    <string name="no_categories">Әзірге санаттар жоқ</string>
+    <string name="no_habits_in_category">Бұл санатта әдеттер жоқ</string>
+    <string name="delete_category_title">Санатты жою керек пе?</string>
+    <string name="delete_category_message">«{0}» санаты және ондағы барлық әдеттер ({1}) қадағалау тарихымен бірге біржола жойылады.</string>
     <string name="no_habits_yet">Әдеттер жоқ — бастау үшін \'Әдет қосу\' батырмасын басыңыз</string>
     <string name="no_tracked_habits">Бұл күнге әдеттер жоқ — қосу үшін төмендегі батырманы басыңыз</string>
     <string name="copy_week_confirm_title">Осы аптаға көшіру?</string>

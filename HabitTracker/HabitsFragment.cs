@@ -18,6 +18,7 @@ namespace HabitTracker
         private RecyclerView? _recyclerView;
         private View? _emptyState;
         private Button? _addButton;
+        private Button? _manageCategoriesButton;
         private Button? _viewArchivedButton;
         private List<Habit> _habits = [];
         private HabitAdapter? _adapter;
@@ -36,6 +37,7 @@ namespace HabitTracker
             _recyclerView = view.FindViewById<RecyclerView>(ResourceConstant.Id.habits_list);
             _emptyState = view.FindViewById<View>(ResourceConstant.Id.empty_state_habits);
             _addButton = view.FindViewById<Button>(ResourceConstant.Id.add_habit_button);
+            _manageCategoriesButton = view.FindViewById<Button>(ResourceConstant.Id.manage_categories_button);
             _viewArchivedButton = view.FindViewById<Button>(ResourceConstant.Id.view_archived_button);
 
             if (_recyclerView != null)
@@ -79,10 +81,21 @@ namespace HabitTracker
             if (_addButton != null)
                 _addButton.Click += (_, _) => ShowAddHabitDialog();
 
+            if (_manageCategoriesButton != null)
+                _manageCategoriesButton.Click += (_, _) => ShowCategoriesDialog();
+
             if (_viewArchivedButton != null)
                 _viewArchivedButton.Click += (_, _) => ShowArchivedHabitsDialog();
 
             LoadHabits();
+        }
+
+        // Tabs are hidden/shown rather than recreated, so refresh whenever this tab is
+        // revealed — e.g. a data import on the Settings tab replaces every habit
+        public override void OnHiddenChanged(bool hidden)
+        {
+            base.OnHiddenChanged(hidden);
+            if (!hidden) LoadHabits();
         }
 
         private async void LoadHabits()
@@ -320,6 +333,65 @@ namespace HabitTracker
                 LoadHabits();
                 dialog.Dismiss();
             };
+        }
+
+        private async void ShowCategoriesDialog()
+        {
+            if (Activity == null) return;
+            var categories = await _database.GetCategoriesAsync();
+
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(GetString(ResourceConstant.String.categories));
+            if (categories.Count == 0)
+                builder.SetMessage(GetString(ResourceConstant.String.no_categories));
+            else
+                builder.SetItems(categories.Select(c => c.Name).ToArray(),
+                    (_, e) => ShowCategoryDetailDialog(categories[e.Which]));
+            builder.SetPositiveButton(GetString(ResourceConstant.String.new_category), (_, _) =>
+                ShowNewCategoryDialog(async void (name) =>
+                {
+                    await _database.GetOrCreateCategoryAsync(name);
+                    ShowCategoriesDialog();
+                }));
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+            builder.Show();
+        }
+
+        private async void ShowCategoryDetailDialog(Category category)
+        {
+            if (Activity == null) return;
+            var habitsInCategory = (await _database.GetAllHabitsAsync())
+                .Where(h => h.CategoryId == category.Id)
+                .OrderBy(h => h.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(category.Name);
+            if (habitsInCategory.Count == 0)
+                builder.SetMessage(GetString(ResourceConstant.String.no_habits_in_category));
+            else
+                builder.SetItems(habitsInCategory.Select(h => h.Name).ToArray(), (_, _) => { });
+            builder.SetPositiveButton(GetString(ResourceConstant.String.delete), (_, _) =>
+                ConfirmDeleteCategory(category, habitsInCategory.Count));
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+            builder.Show();
+        }
+
+        private void ConfirmDeleteCategory(Category category, int habitCount)
+        {
+            if (Activity == null) return;
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(GetString(ResourceConstant.String.delete_category_title));
+            builder.SetMessage(string.Format(
+                GetString(ResourceConstant.String.delete_category_message), category.Name, habitCount));
+            builder.SetPositiveButton(GetString(ResourceConstant.String.delete), async void (_, _) =>
+            {
+                await _database.DeleteCategoryAsync(category);
+                if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
+                LoadHabits();
+            });
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+            builder.Show();
         }
 
         // Binds the category dropdown: "No category", saved categories, and a final

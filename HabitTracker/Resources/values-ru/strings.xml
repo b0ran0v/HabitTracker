@@ -41,6 +41,11 @@
     <string name="new_category">+ Новая категория…</string>
     <string name="new_category_title">Новая категория</string>
     <string name="category_name_hint">Название категории</string>
+    <string name="categories">Категории</string>
+    <string name="no_categories">Категорий пока нет</string>
+    <string name="no_habits_in_category">В этой категории нет привычек</string>
+    <string name="delete_category_title">Удалить категорию?</string>
+    <string name="delete_category_message">Категория «{0}» и все её привычки ({1}) будут удалены навсегда вместе с историей отслеживания.</string>
     <string name="no_habits_yet">Нет привычек — нажмите \'Добавить привычку\', чтобы начать</string>
     <string name="no_tracked_habits">Нет привычек на этот день — нажмите кнопку ниже, чтобы добавить</string>
     <string name="copy_week_confirm_title">Копировать на неделю?</string>

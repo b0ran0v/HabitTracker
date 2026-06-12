@@ -90,6 +90,24 @@ public class Database
         return await _database.InsertAsync(category);
     }
 
+    // Deletes the category together with every habit assigned to it,
+    // including those habits' completion history
+    public async Task DeleteCategoryAsync(Category category)
+    {
+        await _initializationTask;
+        var habits = await _database.Table<Habit>()
+            .Where(h => h.CategoryId == category.Id)
+            .ToListAsync();
+        foreach (var habit in habits)
+        {
+            await _database.Table<HabitCompletion>()
+                .Where(c => c.HabitId == habit.Id)
+                .DeleteAsync();
+            await _database.DeleteAsync(habit);
+        }
+        await _database.DeleteAsync(category);
+    }
+
     public async Task<List<Habit>> GetHabitsAsync()
     {
         await _initializationTask;

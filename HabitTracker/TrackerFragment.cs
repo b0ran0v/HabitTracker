@@ -148,6 +148,14 @@ namespace HabitTracker
             return view;
         }
 
+        // Tabs are hidden/shown rather than recreated, so refresh whenever this tab is
+        // revealed — habits may have been edited, archived, or deleted on other tabs
+        public override void OnHiddenChanged(bool hidden)
+        {
+            base.OnHiddenChanged(hidden);
+            if (!hidden) LoadData();
+        }
+
         private CultureInfo GetCurrentCulture()
         {
             var prefs = Activity?.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
