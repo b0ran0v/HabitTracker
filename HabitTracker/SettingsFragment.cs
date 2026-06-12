@@ -218,7 +218,8 @@ namespace HabitTracker
             {
                 var habits = await _database.GetAllHabitsAsync();
                 var completions = await _database.GetHabitCompletionsAsync();
-                var export = new ExportData { Habits = habits, Completions = completions };
+                var categories = await _database.GetCategoriesAsync();
+                var export = new ExportData { Habits = habits, Completions = completions, Categories = categories };
                 var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true });
 
                 var downloadsDir = Android.OS.Environment.GetExternalStoragePublicDirectory(
@@ -280,10 +281,38 @@ namespace HabitTracker
                 if (import?.Habits == null) throw new InvalidDataException();
 
                 await _database.ClearTablesAsync();
+
+                // Inserts regenerate autoincrement ids, so remap references as we go
+                var categoryIdMap = new Dictionary<int, int>();
+                foreach (var category in import.Categories ?? [])
+                {
+                    var oldId = category.Id;
+                    category.Id = 0;
+                    await _database.SaveCategoryAsync(category);
+                    categoryIdMap[oldId] = category.Id;
+                }
+
+                var habitIdMap = new Dictionary<int, int>();
                 foreach (var habit in import.Habits)
+                {
+                    var oldId = habit.Id;
+                    habit.Id = 0;
+                    if (habit.CategoryId != 0)
+                        habit.CategoryId = categoryIdMap.GetValueOrDefault(habit.CategoryId);
+                    else if (!string.IsNullOrWhiteSpace(habit.Category))
+                        // Files exported before categories had their own table carry only the name
+                        habit.CategoryId = (await _database.GetOrCreateCategoryAsync(habit.Category)).Id;
                     await _database.SaveHabitAsync(habit);
+                    habitIdMap[oldId] = habit.Id;
+                }
+
                 foreach (var completion in import.Completions ?? [])
+                {
+                    if (!habitIdMap.TryGetValue(completion.HabitId, out var newHabitId)) continue;
+                    completion.Id = 0;
+                    completion.HabitId = newHabitId;
                     await _database.SaveHabitCompletionAsync(completion);
+                }
 
                 if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
                 Activity.RunOnUiThread(() =>
@@ -301,5 +330,6 @@ namespace HabitTracker
     {
         public List<Habit> Habits { get; set; } = [];
         public List<HabitCompletion> Completions { get; set; } = [];
+        public List<Category> Categories { get; set; } = [];
     }
 }

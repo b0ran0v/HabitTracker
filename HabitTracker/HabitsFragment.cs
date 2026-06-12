@@ -132,7 +132,7 @@ namespace HabitTracker
             builder.Show();
         }
 
-        private void ShowAddHabitDialog()
+        private async void ShowAddHabitDialog()
         {
             if (Activity == null)
             {
@@ -143,7 +143,7 @@ namespace HabitTracker
             var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
             var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
             var categoryInput = dialogView?.FindViewById<AutoCompleteTextView>(ResourceConstant.Id.habit_category_input);
-            SetupCategorySuggestions(categoryInput);
+            var getSelectedCategoryId = await SetupCategoryDropdownAsync(categoryInput, 0);
 
             var selectedColorHex = "#5C6BC0"; // Default
             var colorOptions = new[]
@@ -214,7 +214,7 @@ namespace HabitTracker
                 {
                     Name = habitName,
                     ColorHex = selectedColorHex,
-                    Category = categoryInput?.Text?.Trim() ?? string.Empty
+                    CategoryId = getSelectedCategoryId()
                 };
                 await _database.SaveHabitAsync(habit);
                 LoadHabits();
@@ -222,7 +222,7 @@ namespace HabitTracker
             };
         }
 
-        private void ShowEditHabitDialog(Habit habit)
+        private async void ShowEditHabitDialog(Habit habit)
         {
             if (Activity == null)
             {
@@ -234,7 +234,7 @@ namespace HabitTracker
             var input = dialogView?.FindViewById<TextInputEditText>(ResourceConstant.Id.habit_name_input);
             var inputLayout = dialogView?.FindViewById<TextInputLayout>(ResourceConstant.Id.habit_name_layout);
             var categoryInput = dialogView?.FindViewById<AutoCompleteTextView>(ResourceConstant.Id.habit_category_input);
-            SetupCategorySuggestions(categoryInput);
+            var getSelectedCategoryId = await SetupCategoryDropdownAsync(categoryInput, habit.CategoryId);
 
             // Pre-fill with existing habit data
             titleView?.Text = GetString(ResourceConstant.String.edit_habit);
@@ -242,11 +242,6 @@ namespace HabitTracker
             {
                 input.Text = habit.Name;
                 input.SetSelection(habit.Name.Length);
-            }
-            if (categoryInput != null)
-            {
-                categoryInput.Text = habit.Category;
-                categoryInput.DismissDropDown();
             }
 
             var selectedColorHex = habit.ColorHex;
@@ -320,24 +315,92 @@ namespace HabitTracker
                     ColorHex = selectedColorHex,
                     SortOrder = habit.SortOrder,
                     IsArchived = habit.IsArchived,
-                    Category = categoryInput?.Text?.Trim() ?? string.Empty
+                    CategoryId = getSelectedCategoryId()
                 });
                 LoadHabits();
                 dialog.Dismiss();
             };
         }
 
-        private void SetupCategorySuggestions(AutoCompleteTextView? categoryInput)
+        // Binds the category dropdown: "No category", saved categories, and a final
+        // "+ New category…" entry that opens a naming dialog. Returns a getter for
+        // the currently selected category id (0 = none).
+        private async Task<Func<int>> SetupCategoryDropdownAsync(AutoCompleteTextView? categoryInput, int currentCategoryId)
         {
-            if (categoryInput == null || Activity == null) return;
-            var categories = _habits
-                .Select(h => h.Category.Trim())
-                .Where(c => c.Length > 0)
-                .Distinct()
-                .OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase)
-                .ToArray();
-            if (categories.Length > 0)
-                categoryInput.Adapter = new ArrayAdapter(Activity, Android.Resource.Layout.SimpleDropDownItem1Line, categories);
+            if (categoryInput == null || Activity == null) return () => currentCategoryId;
+
+            var selectedId = currentCategoryId;
+            var categories = await _database.GetCategoriesAsync();
+            var noCategoryText = GetString(ResourceConstant.String.no_category);
+
+            void BindAdapter()
+            {
+                var items = new List<string> { noCategoryText };
+                items.AddRange(categories.Select(c => c.Name));
+                items.Add(GetString(ResourceConstant.String.new_category));
+                categoryInput.Adapter = new ArrayAdapter(Activity,
+                    Android.Resource.Layout.SimpleDropDownItem1Line, items);
+            }
+            BindAdapter();
+
+            var current = categories.FirstOrDefault(c => c.Id == selectedId);
+            categoryInput.SetText(current?.Name ?? noCategoryText, false);
+
+            categoryInput.ItemClick += (_, e) =>
+            {
+                if (e.Position == 0)
+                {
+                    selectedId = 0;
+                    return;
+                }
+                if (e.Position == categories.Count + 1)
+                {
+                    // Revert the field until the new category is actually created
+                    var revertName = categories.FirstOrDefault(c => c.Id == selectedId)?.Name ?? noCategoryText;
+                    categoryInput.SetText(revertName, false);
+                    ShowNewCategoryDialog(async void (name) =>
+                    {
+                        var category = await _database.GetOrCreateCategoryAsync(name);
+                        if (categories.All(c => c.Id != category.Id))
+                        {
+                            categories.Add(category);
+                            categories = categories
+                                .OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+                            BindAdapter();
+                        }
+                        selectedId = category.Id;
+                        categoryInput.SetText(category.Name, false);
+                    });
+                    return;
+                }
+                selectedId = categories[e.Position - 1].Id;
+            };
+
+            return () => selectedId;
+        }
+
+        private void ShowNewCategoryDialog(Action<string> onCreated)
+        {
+            if (Activity == null) return;
+            var input = new EditText(Activity)
+            {
+                Hint = GetString(ResourceConstant.String.category_name_hint),
+                InputType = Android.Text.InputTypes.ClassText | Android.Text.InputTypes.TextFlagCapSentences
+            };
+            input.SetSingleLine();
+            input.SetFilters([new Android.Text.InputFilterLengthFilter(30)]);
+            input.SetPadding(48, 24, 48, 24);
+
+            var builder = new AlertDialog.Builder(Activity);
+            builder.SetTitle(GetString(ResourceConstant.String.new_category_title));
+            builder.SetView(input);
+            builder.SetPositiveButton(GetString(ResourceConstant.String.add), (_, _) =>
+            {
+                var name = input.Text?.Trim();
+                if (!string.IsNullOrWhiteSpace(name)) onCreated(name);
+            });
+            builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+            builder.Show();
         }
     }
 
