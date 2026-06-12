@@ -260,17 +260,25 @@ namespace HabitTracker
                     column.Background = pill;
                 }
 
+                // Default LinearLayout params make these full-width, so the parent's
+                // CenterHorizontal gravity is a no-op — center the text itself instead
                 var dayName = new TextView(Context)
                 {
                     Text = culture.DateTimeFormat.AbbreviatedDayNames[(int)date.DayOfWeek]
                         .TrimEnd('.').ToUpper(culture),
-                    TextSize = 10
+                    TextSize = 10,
+                    Gravity = GravityFlags.Center
                 };
                 dayName.SetTextColor(isSelected ? Android.Graphics.Color.White
                     : Res(ResourceConstant.Color.textColorSecondary));
                 column.AddView(dayName);
 
-                var dayNumber = new TextView(Context) { Text = date.Day.ToString(), TextSize = 14 };
+                var dayNumber = new TextView(Context)
+                {
+                    Text = date.Day.ToString(),
+                    TextSize = 14,
+                    Gravity = GravityFlags.Center
+                };
                 dayNumber.SetTypeface(null, Android.Graphics.TypefaceStyle.Bold);
                 dayNumber.SetTextColor(isSelected ? Android.Graphics.Color.White
                     : isToday ? Res(ResourceConstant.Color.colorPrimary)

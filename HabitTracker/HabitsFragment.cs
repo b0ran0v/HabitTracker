@@ -733,7 +733,9 @@ namespace HabitTracker
             }
             else if (direction == ItemTouchHelper.Right)
             {
-                viewHolder.ItemView.TranslationX = 0f;
+                // Edit is a non-removing swipe, so the row must be rebound to clear
+                // ItemTouchHelper's swipe offset — otherwise it stays held open
+                viewHolder.BindingAdapter?.NotifyItemChanged(position);
                 _onEdit(position);
             }
         }
