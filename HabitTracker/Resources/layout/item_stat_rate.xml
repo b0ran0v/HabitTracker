@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="10dp">
+
+    <TextView
+        android:id="@+id/rate_habit_name"
+        android:layout_width="96dp"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textColor="@color/textColorPrimary"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <ProgressBar
+        android:id="@+id/rate_progress"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="0dp"
+        android:layout_height="6dp"
+        android:layout_weight="1"
+        android:layout_marginHorizontal="12dp"
+        android:max="100" />
+
+    <TextView
+        android:id="@+id/rate_percent"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/textColorPrimary" />
+
+</LinearLayout>

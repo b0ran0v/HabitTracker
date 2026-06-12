@@ -19,6 +19,7 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
     private Database? _database;
     private HabitsFragment? _habitsFragment;
     private TrackerFragment? _trackerFragment;
+    private StatisticsFragment? _statisticsFragment;
     private SettingsFragment? _settingsFragment;
     private Fragment? _activeFragment;
 
@@ -99,8 +100,9 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
             // so navigation reuses them instead of stacking new instances.
             _trackerFragment = (TrackerFragment?)SupportFragmentManager.FindFragmentByTag(nameof(TrackerFragment));
             _habitsFragment = (HabitsFragment?)SupportFragmentManager.FindFragmentByTag(nameof(HabitsFragment));
+            _statisticsFragment = (StatisticsFragment?)SupportFragmentManager.FindFragmentByTag(nameof(StatisticsFragment));
             _settingsFragment = (SettingsFragment?)SupportFragmentManager.FindFragmentByTag(nameof(SettingsFragment));
-            _activeFragment = new Fragment?[] { _trackerFragment, _habitsFragment, _settingsFragment }
+            _activeFragment = new Fragment?[] { _trackerFragment, _habitsFragment, _statisticsFragment, _settingsFragment }
                 .FirstOrDefault(f => f is { IsHidden: false });
             return;
         }
@@ -167,6 +169,7 @@ public class MainActivity : AppCompatActivity, NavigationBarView.IOnItemSelected
         {
             ResourceConstant.Id.navigation_habits => _habitsFragment ??= new HabitsFragment(_database!),
             ResourceConstant.Id.navigation_tracker => _trackerFragment ??= new TrackerFragment(_database!),
+            ResourceConstant.Id.navigation_statistics => _statisticsFragment ??= new StatisticsFragment(_database!),
             ResourceConstant.Id.navigation_settings => _settingsFragment ??= new SettingsFragment(),
             _ => null
         };

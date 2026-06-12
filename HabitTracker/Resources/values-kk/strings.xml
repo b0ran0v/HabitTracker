@@ -84,6 +84,20 @@
     <string name="reminder_channel_name">Күнделікті еске салулар</string>
     <string name="reminder_text_generic">Әдеттерді белгілеу уақыты келді!</string>
     <string name="reminder_text_pending">Бүгін орындау қалды: {0}</string>
+    <string name="statistics">Статистика</string>
+    <string name="stat_total_habits">Барлық әдеттер</string>
+    <string name="stat_tracked_today">Бүгін трекерде</string>
+    <string name="stat_completed_today">Бүгін орындалды</string>
+    <string name="current_streak">Ағымдағы сериялар</string>
+    <plurals name="streak_days">
+        <item quantity="one">{0} күн</item>
+        <item quantity="other">{0} күн</item>
+    </plurals>
+    <string name="last_7_days">Соңғы 7 күн</string>
+    <string name="completion_rate">30 күндік орындалу</string>
+    <string name="most_consistent">Ең тұрақты</string>
+    <string name="needs_attention">Назар қажет</string>
+    <string name="no_data_yet">Әзірге деректер жоқ — статистиканы көру үшін әдеттерді жасап, қадағалаңыз</string>
     <string name="next">Келесі</string>
     <string name="back">Артқа</string>
 </resources>

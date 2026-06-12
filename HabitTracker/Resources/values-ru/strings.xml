@@ -84,6 +84,22 @@
     <string name="reminder_channel_name">Ежедневные напоминания</string>
     <string name="reminder_text_generic">Время отметить привычки!</string>
     <string name="reminder_text_pending">Осталось выполнить сегодня: {0}</string>
+    <string name="statistics">Статистика</string>
+    <string name="stat_total_habits">Всего привычек</string>
+    <string name="stat_tracked_today">Сегодня в трекере</string>
+    <string name="stat_completed_today">Выполнено сегодня</string>
+    <string name="current_streak">Текущие серии</string>
+    <plurals name="streak_days">
+        <item quantity="one">{0} день</item>
+        <item quantity="few">{0} дня</item>
+        <item quantity="many">{0} дней</item>
+        <item quantity="other">{0} дня</item>
+    </plurals>
+    <string name="last_7_days">Последние 7 дней</string>
+    <string name="completion_rate">Выполнение за 30 дней</string>
+    <string name="most_consistent">Самая стабильная</string>
+    <string name="needs_attention">Требует внимания</string>
+    <string name="no_data_yet">Пока нет данных — создайте и отслеживайте привычки, чтобы увидеть статистику</string>
     <string name="next">Далее</string>
     <string name="back">Назад</string>
 </resources>

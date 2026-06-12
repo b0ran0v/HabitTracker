@@ -84,6 +84,20 @@
     <string name="reminder_channel_name">Daily reminders</string>
     <string name="reminder_text_generic">Time to log your habits!</string>
     <string name="reminder_text_pending">You have {0} habit(s) left to complete today</string>
+    <string name="statistics">Statistics</string>
+    <string name="stat_total_habits">Total habits</string>
+    <string name="stat_tracked_today">Tracked today</string>
+    <string name="stat_completed_today">Completed today</string>
+    <string name="current_streak">Current Streaks</string>
+    <plurals name="streak_days">
+        <item quantity="one">{0} day</item>
+        <item quantity="other">{0} days</item>
+    </plurals>
+    <string name="last_7_days">Last 7 Days</string>
+    <string name="completion_rate">30-Day Completion Rate</string>
+    <string name="most_consistent">Most consistent</string>
+    <string name="needs_attention">Needs attention</string>
+    <string name="no_data_yet">No data yet — create and track habits to see statistics</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
 </resources>
