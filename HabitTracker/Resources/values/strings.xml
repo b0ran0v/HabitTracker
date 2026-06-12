@@ -41,6 +41,7 @@
     <string name="new_category">+ New category…</string>
     <string name="new_category_title">New Category</string>
     <string name="category_name_hint">Category name</string>
+    <string name="generic_error">Something went wrong. Please try again.</string>
     <string name="categories">Categories</string>
     <string name="no_categories">No categories yet</string>
     <string name="no_habits_in_category">No habits in this category</string>

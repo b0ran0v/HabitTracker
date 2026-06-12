@@ -41,6 +41,7 @@
     <string name="new_category">+ Жаңа санат…</string>
     <string name="new_category_title">Жаңа санат</string>
     <string name="category_name_hint">Санат атауы</string>
+    <string name="generic_error">Бірдеңе дұрыс болмады. Қайталап көріңіз.</string>
     <string name="categories">Санаттар</string>
     <string name="no_categories">Әзірге санаттар жоқ</string>
     <string name="no_habits_in_category">Бұл санатта әдеттер жоқ</string>

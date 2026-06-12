@@ -48,7 +48,7 @@ namespace HabitTracker
                 _recyclerView.SetAdapter(_adapter);
 
                 var callback = new HabitSwipeCallback(
-                    onArchive: async void (position) =>
+                    onArchive: position => UiSafe.Run(Context, async () =>
                     {
                         var habit = _adapter?.GetHabitAt(position);
                         if (habit == null) return;
@@ -60,18 +60,18 @@ namespace HabitTracker
                             _adapter?.UpdateHabits(_habits);
                             _emptyState?.Visibility = _habits.Count == 0 ? ViewStates.Visible : ViewStates.Gone;
                         });
-                    },
+                    }),
                     onEdit: (position) =>
                     {
                         var habit = _adapter?.GetHabitAt(position);
                         if (habit != null) ShowEditHabitDialog(habit);
                     },
                     onMove: (fromPos, toPos) => _adapter?.MoveItem(fromPos, toPos) ?? false,
-                    onDragEnd: async void () =>
+                    onDragEnd: () => UiSafe.Run(Context, async () =>
                     {
                         if (_adapter == null) return;
                         await _database.UpdateHabitSortOrdersAsync(_adapter.GetHabitsInDisplayOrder());
-                    },
+                    }),
                     context: Context);
 
                 _itemTouchHelper = new ItemTouchHelper(callback);
@@ -98,7 +98,9 @@ namespace HabitTracker
             if (!hidden) LoadHabits();
         }
 
-        private async void LoadHabits()
+        private void LoadHabits() => UiSafe.Run(Context, LoadHabitsAsync);
+
+        private async Task LoadHabitsAsync()
         {
             if (Activity == null || _adapter == null) return;
             var habits = await _database.GetHabitsAsync();
@@ -110,7 +112,9 @@ namespace HabitTracker
             });
         }
 
-        private async void ShowArchivedHabitsDialog()
+        private void ShowArchivedHabitsDialog() => UiSafe.Run(Context, ShowArchivedHabitsDialogAsync);
+
+        private async Task ShowArchivedHabitsDialogAsync()
         {
             if (Activity == null) return;
             var archived = await _database.GetArchivedHabitsAsync();
@@ -123,21 +127,21 @@ namespace HabitTracker
             var names = archived.Select(h => h.Name).ToArray();
             var builder = new AlertDialog.Builder(Activity);
             builder.SetTitle(GetString(ResourceConstant.String.archived_habits));
-            builder.SetItems(names, async (_, e) =>
+            builder.SetItems(names, (_, e) =>
             {
                 var selected = archived[e.Which];
                 var actionBuilder = new AlertDialog.Builder(Activity);
                 actionBuilder.SetTitle(selected.Name);
-                actionBuilder.SetPositiveButton(GetString(ResourceConstant.String.restore), async (_, _) =>
+                actionBuilder.SetPositiveButton(GetString(ResourceConstant.String.restore), (_, _) => UiSafe.Run(Context, async () =>
                 {
                     await _database.UnarchiveHabitAsync(selected);
                     LoadHabits();
-                });
-                actionBuilder.SetNegativeButton(GetString(ResourceConstant.String.delete_permanently), async (_, _) =>
+                }));
+                actionBuilder.SetNegativeButton(GetString(ResourceConstant.String.delete_permanently), (_, _) => UiSafe.Run(Context, async () =>
                 {
                     await _database.DeleteHabitAsync(selected);
                     await _database.DeleteHabitCompletionsForHabitAsync(selected.Id);
-                });
+                }));
                 actionBuilder.SetNeutralButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
                 actionBuilder.Show();
             });
@@ -145,7 +149,9 @@ namespace HabitTracker
             builder.Show();
         }
 
-        private async void ShowAddHabitDialog()
+        private void ShowAddHabitDialog() => UiSafe.Run(Context, ShowAddHabitDialogAsync);
+
+        private async Task ShowAddHabitDialogAsync()
         {
             if (Activity == null)
             {
@@ -211,7 +217,7 @@ namespace HabitTracker
             if (dialog == null) return;
             dialog.Show();
 
-            dialog.GetButton((int)DialogButtonType.Positive)?.Click += async (_, _) =>
+            dialog.GetButton((int)DialogButtonType.Positive)?.Click += (_, _) => UiSafe.Run(Context, async () =>
             {
                 var habitName = input?.Text;
                 if (string.IsNullOrWhiteSpace(habitName))
@@ -232,10 +238,13 @@ namespace HabitTracker
                 await _database.SaveHabitAsync(habit);
                 LoadHabits();
                 dialog.Dismiss();
-            };
+            });
         }
 
-        private async void ShowEditHabitDialog(Habit habit)
+        private void ShowEditHabitDialog(Habit habit) =>
+            UiSafe.Run(Context, () => ShowEditHabitDialogAsync(habit));
+
+        private async Task ShowEditHabitDialogAsync(Habit habit)
         {
             if (Activity == null)
             {
@@ -312,7 +321,7 @@ namespace HabitTracker
             if (dialog == null) return;
             dialog.Show();
 
-            dialog.GetButton((int)DialogButtonType.Positive)?.Click += async (_, _) =>
+            dialog.GetButton((int)DialogButtonType.Positive)?.Click += (_, _) => UiSafe.Run(Context, async () =>
             {
                 var habitName = input?.Text;
                 if (string.IsNullOrWhiteSpace(habitName))
@@ -332,10 +341,12 @@ namespace HabitTracker
                 });
                 LoadHabits();
                 dialog.Dismiss();
-            };
+            });
         }
 
-        private async void ShowCategoriesDialog()
+        private void ShowCategoriesDialog() => UiSafe.Run(Context, ShowCategoriesDialogAsync);
+
+        private async Task ShowCategoriesDialogAsync()
         {
             if (Activity == null) return;
             var categories = await _database.GetCategoriesAsync();
@@ -348,16 +359,19 @@ namespace HabitTracker
                 builder.SetItems(categories.Select(c => c.Name).ToArray(),
                     (_, e) => ShowCategoryDetailDialog(categories[e.Which]));
             builder.SetPositiveButton(GetString(ResourceConstant.String.new_category), (_, _) =>
-                ShowNewCategoryDialog(async void (name) =>
+                ShowNewCategoryDialog(name => UiSafe.Run(Context, async () =>
                 {
                     await _database.GetOrCreateCategoryAsync(name);
                     ShowCategoriesDialog();
-                }));
+                })));
             builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             builder.Show();
         }
 
-        private async void ShowCategoryDetailDialog(Category category)
+        private void ShowCategoryDetailDialog(Category category) =>
+            UiSafe.Run(Context, () => ShowCategoryDetailDialogAsync(category));
+
+        private async Task ShowCategoryDetailDialogAsync(Category category)
         {
             if (Activity == null) return;
             var habitsInCategory = (await _database.GetAllHabitsAsync())
@@ -384,12 +398,12 @@ namespace HabitTracker
             builder.SetTitle(GetString(ResourceConstant.String.delete_category_title));
             builder.SetMessage(string.Format(
                 GetString(ResourceConstant.String.delete_category_message), category.Name, habitCount));
-            builder.SetPositiveButton(GetString(ResourceConstant.String.delete), async void (_, _) =>
+            builder.SetPositiveButton(GetString(ResourceConstant.String.delete), (_, _) => UiSafe.Run(Context, async () =>
             {
                 await _database.DeleteCategoryAsync(category);
                 if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
                 LoadHabits();
-            });
+            }));
             builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             builder.Show();
         }
@@ -430,7 +444,7 @@ namespace HabitTracker
                     // Revert the field until the new category is actually created
                     var revertName = categories.FirstOrDefault(c => c.Id == selectedId)?.Name ?? noCategoryText;
                     categoryInput.SetText(revertName, false);
-                    ShowNewCategoryDialog(async void (name) =>
+                    ShowNewCategoryDialog(name => UiSafe.Run(Context, async () =>
                     {
                         var category = await _database.GetOrCreateCategoryAsync(name);
                         if (categories.All(c => c.Id != category.Id))
@@ -442,7 +456,7 @@ namespace HabitTracker
                         }
                         selectedId = category.Id;
                         categoryInput.SetText(category.Name, false);
-                    });
+                    }));
                     return;
                 }
                 selectedId = categories[e.Position - 1].Id;

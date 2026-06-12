@@ -66,7 +66,7 @@ namespace HabitTracker
 
             var exportButton = view?.FindViewById<MaterialButton>(ResourceConstant.Id.export_data_button);
             if (exportButton != null)
-                exportButton.Click += async (_, _) => await ExportDataAsync();
+                exportButton.Click += (_, _) => UiSafe.Run(Context, ExportDataAsync);
 
             var importButton = view?.FindViewById<MaterialButton>(ResourceConstant.Id.import_data_button);
             if (importButton != null)
@@ -248,7 +248,7 @@ namespace HabitTracker
         }
 
 #pragma warning disable CS0618, CS0672
-        public override async void OnActivityResult(int requestCode, int resultCode, Intent? data)
+        public override void OnActivityResult(int requestCode, int resultCode, Intent? data)
         {
             base.OnActivityResult(requestCode, resultCode, data);
             if (requestCode != ImportRequestCode || resultCode != (int)Android.App.Result.Ok || data?.Data == null) return;
@@ -256,10 +256,8 @@ namespace HabitTracker
             var confirmBuilder = new AlertDialog.Builder(Activity);
             confirmBuilder.SetTitle(GetString(ResourceConstant.String.import_confirm_title));
             confirmBuilder.SetMessage(GetString(ResourceConstant.String.import_confirm_message));
-            confirmBuilder.SetPositiveButton(GetString(ResourceConstant.String.ok), async (_, _) =>
-            {
-                await ImportDataAsync(data.Data);
-            });
+            confirmBuilder.SetPositiveButton(GetString(ResourceConstant.String.ok),
+                (_, _) => UiSafe.Run(Context, () => ImportDataAsync(data.Data)));
             confirmBuilder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             confirmBuilder.Show();
         }

@@ -67,7 +67,9 @@ namespace HabitTracker
             if (!hidden) LoadData();
         }
 
-        private async void LoadData()
+        private void LoadData() => UiSafe.Run(Context, LoadDataAsync);
+
+        private async Task LoadDataAsync()
         {
             if (Activity == null) return;
             var habits = await _database.GetHabitsAsync();

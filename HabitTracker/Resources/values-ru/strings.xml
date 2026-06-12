@@ -41,6 +41,7 @@
     <string name="new_category">+ Новая категория…</string>
     <string name="new_category_title">Новая категория</string>
     <string name="category_name_hint">Название категории</string>
+    <string name="generic_error">Что-то пошло не так. Попробуйте ещё раз.</string>
     <string name="categories">Категории</string>
     <string name="no_categories">Категорий пока нет</string>
     <string name="no_habits_in_category">В этой категории нет привычек</string>

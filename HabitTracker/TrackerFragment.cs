@@ -56,10 +56,10 @@ namespace HabitTracker
             {
                 _recyclerView.SetLayoutManager(new LinearLayoutManager(Activity));
                 _adapter = new TrackerAdapter(_habits, _completions,
-                    async void (position) => { await OnItemClick(position); });
+                    position => UiSafe.Run(Context, () => OnItemClick(position)));
                 _recyclerView.SetAdapter(_adapter);
 
-                var callback = new TrackerSwipeCallback(async void (position) =>
+                var callback = new TrackerSwipeCallback(position => UiSafe.Run(Context, async () =>
                     {
                         var completion = _adapter?.GetCompletionAt(position);
                         if (completion == null) return;
@@ -69,7 +69,7 @@ namespace HabitTracker
                             if (Activity == null) return;
                             LoadData();
                         });
-                    }, async void (position) => { await OnItemClick(position); },
+                    }), position => UiSafe.Run(Context, () => OnItemClick(position)),
                     position => _adapter?.GetCompletionAt(position)?.CompletedDate.HasValue == true,
                     Context);
 
@@ -84,7 +84,7 @@ namespace HabitTracker
 
             if (_copyWeekButton != null)
             {
-                _copyWeekButton.Click += async (_, _) => { await CopyHabitsForWeek(); };
+                _copyWeekButton.Click += (_, _) => UiSafe.Run(Context, CopyHabitsForWeek);
             }
 
             if (_pickDateButton != null)
@@ -187,7 +187,9 @@ namespace HabitTracker
                 : string.Format(GetString(ResourceConstant.String.add_to_tracker_for), _selectedDate.ToString("MM-dd"));
         }
 
-        private async void LoadData()
+        private void LoadData() => UiSafe.Run(Context, LoadDataAsync);
+
+        private async Task LoadDataAsync()
         {
             if (Activity == null || _adapter == null) return;
 
@@ -388,7 +390,9 @@ namespace HabitTracker
             LoadData();
         }
 
-        private async void ShowAddTrackedHabitDialog()
+        private void ShowAddTrackedHabitDialog() => UiSafe.Run(Context, ShowAddTrackedHabitDialogAsync);
+
+        private async Task ShowAddTrackedHabitDialogAsync()
         {
             if (Activity == null) return;
 
@@ -408,7 +412,7 @@ namespace HabitTracker
             var habitNames = availableHabits.Select(h => h.Name).ToArray();
             var builder = new AlertDialog.Builder(Activity);
             builder.SetTitle(GetString(ResourceConstant.String.track_a_habit));
-            builder.SetItems(habitNames, async void (_, e) =>
+            builder.SetItems(habitNames, (_, e) => UiSafe.Run(Context, async () =>
             {
                 var selectedHabit = availableHabits[e.Which];
                 var newCompletion = new HabitCompletion
@@ -420,8 +424,8 @@ namespace HabitTracker
                 };
                 await _database.SaveHabitCompletionAsync(newCompletion);
                 LoadData();
-            });
-            builder.SetNeutralButton(GetString(ResourceConstant.String.add_all_activities), async void (_, _) =>
+            }));
+            builder.SetNeutralButton(GetString(ResourceConstant.String.add_all_activities), (_, _) => UiSafe.Run(Context, async () =>
             {
                 foreach (var habit in availableHabits)
                 {
@@ -436,7 +440,7 @@ namespace HabitTracker
                 }
 
                 LoadData();
-            });
+            }));
             builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             builder.Show();
         }
