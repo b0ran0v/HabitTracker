@@ -156,19 +156,29 @@ namespace HabitTracker
 
                 var isToday = column.Date == DateTime.Today;
 
+                // Center the text within each TextView so the name and number line
+                // up regardless of the view's measured width
                 var dayName = new TextView(Context)
                 {
                     Text = culture.DateTimeFormat.AbbreviatedDayNames[(int)column.Date.DayOfWeek]
                         .TrimEnd('.').ToUpper(culture),
-                    TextSize = 10
+                    TextSize = 10,
+                    Gravity = GravityFlags.Center
                 };
                 dayName.SetTextColor(Res(ResourceConstant.Color.textColorSecondary));
                 var nameParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent) { TopMargin = Dp(6) };
+                    ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent) { TopMargin = Dp(6) };
                 dayName.LayoutParameters = nameParams;
                 columnLayout.AddView(dayName);
 
-                var dayNumber = new TextView(Context) { Text = column.Date.Day.ToString(), TextSize = 12 };
+                var dayNumber = new TextView(Context)
+                {
+                    Text = column.Date.Day.ToString(),
+                    TextSize = 12,
+                    Gravity = GravityFlags.Center
+                };
+                dayNumber.LayoutParameters = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
                 dayNumber.SetTypeface(null, Android.Graphics.TypefaceStyle.Bold);
                 dayNumber.SetTextColor(isToday
                     ? Res(ResourceConstant.Color.colorPrimary)
