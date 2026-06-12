@@ -795,7 +795,11 @@ namespace HabitTracker
             }
             else if (direction == ItemTouchHelper.Right)
             {
-                _onCompleted(viewHolder.BindingAdapterPosition);
+                var position = viewHolder.BindingAdapterPosition;
+                // Complete/undo keeps the row, so rebind it to clear the swipe offset —
+                // otherwise cancelling the notes dialog leaves the row stuck open
+                viewHolder.BindingAdapter?.NotifyItemChanged(position);
+                _onCompleted(position);
             }
         }
 
