@@ -19,6 +19,7 @@ namespace HabitTracker
         private const string ThemeDark = "dark";
         private const string ThemeLight = "light";
         private const int ImportRequestCode = 1001;
+        private const int ExportRequestCode = 1003;
         private const string ReminderEnabledKey = "reminder_enabled";
         private const string ReminderHourKey = "reminder_hour";
         private const string ReminderMinuteKey = "reminder_minute";
@@ -27,6 +28,7 @@ namespace HabitTracker
         private MaterialButton? _toggleThemeButton;
         private MaterialButton? _reminderButton;
         private Database? _database;
+        private string? _pendingExportJson;
 
         public override View? OnCreateView(LayoutInflater inflater, ViewGroup? container, Bundle? savedInstanceState)
         {
@@ -219,13 +221,53 @@ namespace HabitTracker
                 var habits = await _database.GetAllHabitsAsync();
                 var completions = await _database.GetHabitCompletionsAsync();
                 var categories = await _database.GetCategoriesAsync();
-                var export = new ExportData { Habits = habits, Completions = completions, Categories = categories };
-                var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true });
+                var prefs = Activity.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+                var settings = new AppSettings
+                {
+                    ReminderEnabled = prefs?.GetBoolean("reminder_enabled", false) ?? false,
+                    ReminderHour = prefs?.GetInt("reminder_hour", 20) ?? 20,
+                    ReminderMinute = prefs?.GetInt("reminder_minute", 0) ?? 0,
+                    Language = prefs?.GetString("app_language", null)
+                };
+                var export = new ExportData
+                {
+                    Habits = habits,
+                    Completions = completions,
+                    Categories = categories,
+                    Settings = settings
+                };
+                _pendingExportJson = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true });
+                
+                Activity.RunOnUiThread(() =>
+                {
+                    var intent = new Intent(Intent.ActionCreateDocument);
+                    intent.AddCategory(Intent.CategoryOpenable);
+                    intent.SetType("application/json");
+                    intent.PutExtra(Intent.ExtraTitle, "HabitTracker.json");
+#pragma warning disable CS0618
+                    StartActivityForResult(intent, ExportRequestCode);
+#pragma warning restore CS0618
+                });
+            }
+            catch
+            {
+                Activity.RunOnUiThread(() =>
+                    Toast.MakeText(Activity, GetString(ResourceConstant.String.export_error), ToastLength.Short)?.Show());
+            }
+        }
 
-                var downloadsDir = Android.OS.Environment.GetExternalStoragePublicDirectory(
-                    Android.OS.Environment.DirectoryDownloads)!.AbsolutePath;
-                var filePath = Path.Combine(downloadsDir, "HabitTracker.json");
-                await File.WriteAllTextAsync(filePath, json);
+        private async Task WriteExportToUriAsync(Android.Net.Uri uri)
+        {
+            var json = _pendingExportJson;
+            _pendingExportJson = null;
+            if (Activity == null || string.IsNullOrEmpty(json)) return;
+            try
+            {
+                var stream = Activity.ContentResolver?.OpenOutputStream(uri);
+                if (stream == null) throw new InvalidOperationException("Could not open output stream.");
+                await using (stream)
+                await using (var writer = new StreamWriter(stream))
+                    await writer.WriteAsync(json);
 
                 Activity.RunOnUiThread(() =>
                     Toast.MakeText(Activity, GetString(ResourceConstant.String.export_success), ToastLength.Long)?.Show());
@@ -251,7 +293,14 @@ namespace HabitTracker
         public override void OnActivityResult(int requestCode, int resultCode, Intent? data)
         {
             base.OnActivityResult(requestCode, resultCode, data);
-            if (requestCode != ImportRequestCode || resultCode != (int)Android.App.Result.Ok || data?.Data == null) return;
+            if (resultCode != (int)Result.Ok || data?.Data == null) return;
+
+            if (requestCode == ExportRequestCode)
+            {
+                UiSafe.Run(Context, () => WriteExportToUriAsync(data.Data));
+                return;
+            }
+            if (requestCode != ImportRequestCode) return;
 
             var confirmBuilder = new AlertDialog.Builder(Activity);
             confirmBuilder.SetTitle(GetString(ResourceConstant.String.import_confirm_title));
@@ -271,16 +320,15 @@ namespace HabitTracker
                 var stream = Activity.ContentResolver?.OpenInputStream(uri);
                 if (stream == null) throw new InvalidOperationException("Could not open file stream.");
                 string json;
-                using (stream)
-                using (var reader = new System.IO.StreamReader(stream))
+                await using (stream)
+                using (var reader = new StreamReader(stream))
                     json = await reader.ReadToEndAsync();
 
                 var import = JsonSerializer.Deserialize<ExportData>(json);
                 if (import?.Habits == null) throw new InvalidDataException();
 
                 await _database.ClearTablesAsync();
-
-                // Inserts regenerate autoincrement ids, so remap references as we go
+                
                 var categoryIdMap = new Dictionary<int, int>();
                 foreach (var category in import.Categories ?? [])
                 {
@@ -298,7 +346,6 @@ namespace HabitTracker
                     if (habit.CategoryId != 0)
                         habit.CategoryId = categoryIdMap.GetValueOrDefault(habit.CategoryId);
                     else if (!string.IsNullOrWhiteSpace(habit.Category))
-                        // Files exported before categories had their own table carry only the name
                         habit.CategoryId = (await _database.GetOrCreateCategoryAsync(habit.Category)).Id;
                     await _database.SaveHabitAsync(habit);
                     habitIdMap[oldId] = habit.Id;
@@ -312,6 +359,8 @@ namespace HabitTracker
                     await _database.SaveHabitCompletionAsync(completion);
                 }
 
+                if (import.Settings != null) ApplyImportedSettings(import.Settings);
+
                 if (Context != null) HabitWidgetProvider.RequestUpdate(Context);
                 Activity.RunOnUiThread(() =>
                     Toast.MakeText(Activity, GetString(ResourceConstant.String.import_success), ToastLength.Short)?.Show());
@@ -322,6 +371,26 @@ namespace HabitTracker
                     Toast.MakeText(Activity, GetString(ResourceConstant.String.import_error), ToastLength.Short)?.Show());
             }
         }
+        
+        private void ApplyImportedSettings(AppSettings settings)
+        {
+            if (Context == null) return;
+            var prefs = Context.GetSharedPreferences("HabitTrackerPrefs", FileCreationMode.Private);
+            var editor = prefs?.Edit();
+            if (editor == null) return;
+
+            editor.PutBoolean("reminder_enabled", settings.ReminderEnabled);
+            editor.PutInt("reminder_hour", settings.ReminderHour);
+            editor.PutInt("reminder_minute", settings.ReminderMinute);
+            if (!string.IsNullOrEmpty(settings.Language))
+                editor.PutString("app_language", settings.Language);
+            editor.Apply();
+
+            if (settings.ReminderEnabled)
+                ReminderReceiver.Schedule(Context, settings.ReminderHour, settings.ReminderMinute);
+            else
+                ReminderReceiver.Cancel(Context);
+        }
     }
 
     public class ExportData
@@ -329,5 +398,14 @@ namespace HabitTracker
         public List<Habit> Habits { get; set; } = [];
         public List<HabitCompletion> Completions { get; set; } = [];
         public List<Category> Categories { get; set; } = [];
+        public AppSettings? Settings { get; set; }
+    }
+
+    public class AppSettings
+    {
+        public bool ReminderEnabled { get; set; }
+        public int ReminderHour { get; set; } = 20;
+        public int ReminderMinute { get; set; }
+        public string? Language { get; set; }
     }
 }
