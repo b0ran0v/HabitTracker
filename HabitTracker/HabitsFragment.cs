@@ -222,10 +222,7 @@ namespace HabitTracker
                 var habitName = input?.Text;
                 if (string.IsNullOrWhiteSpace(habitName))
                 {
-                    if (inputLayout != null)
-                    {
-                        inputLayout.Error = GetString(ResourceConstant.String.enter_habit_name_error);
-                    }
+                    inputLayout?.Error = GetString(ResourceConstant.String.enter_habit_name_error);
                     return;
                 }
 
@@ -362,7 +359,7 @@ namespace HabitTracker
                 ShowNewCategoryDialog(name => UiSafe.Run(Context, async () =>
                 {
                     await _database.GetOrCreateCategoryAsync(name);
-                    ShowCategoriesDialog();
+                    await ShowCategoriesDialogAsync();
                 })));
             builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
             builder.Show();
@@ -419,50 +416,85 @@ namespace HabitTracker
             var categories = await _database.GetCategoriesAsync();
             var noCategoryText = GetString(ResourceConstant.String.no_category);
 
-            void BindAdapter()
-            {
-                var items = new List<string> { noCategoryText };
-                items.AddRange(categories.Select(c => c.Name));
-                items.Add(GetString(ResourceConstant.String.new_category));
-                categoryInput.Adapter = new ArrayAdapter(Activity,
-                    Android.Resource.Layout.SimpleDropDownItem1Line, items);
-            }
-            BindAdapter();
+            UpdateField();
+            
+            categoryInput.Focusable = false;
+            categoryInput.FocusableInTouchMode = false;
+            categoryInput.Adapter = null;
 
-            var current = categories.FirstOrDefault(c => c.Id == selectedId);
-            categoryInput.SetText(current?.Name ?? noCategoryText, false);
+            categoryInput.Click += (_, _) => ShowPicker();
 
-            categoryInput.ItemClick += (_, e) =>
-            {
-                if (e.Position == 0)
-                {
-                    selectedId = 0;
-                    return;
-                }
-                if (e.Position == categories.Count + 1)
-                {
-                    // Revert the field until the new category is actually created
-                    var revertName = categories.FirstOrDefault(c => c.Id == selectedId)?.Name ?? noCategoryText;
-                    categoryInput.SetText(revertName, false);
-                    ShowNewCategoryDialog(name => UiSafe.Run(Context, async () =>
-                    {
-                        var category = await _database.GetOrCreateCategoryAsync(name);
-                        if (categories.All(c => c.Id != category.Id))
-                        {
-                            categories.Add(category);
-                            categories = categories
-                                .OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
-                            BindAdapter();
-                        }
-                        selectedId = category.Id;
-                        categoryInput.SetText(category.Name, false);
-                    }));
-                    return;
-                }
-                selectedId = categories[e.Position - 1].Id;
-            };
+            // The dropdown end-icon (arrow) is a separate tap target, so route it to
+            // the same picker rather than the now-disabled inline popup.
+            var layout = categoryInput.Parent;
+            while (layout != null && layout is not TextInputLayout)
+                layout = (layout as View)?.Parent;
+            (layout as TextInputLayout)?.SetEndIconOnClickListener(new ClickProxy(ShowPicker));
 
             return () => selectedId;
+
+            void UpdateField()
+            {
+                var current = categories.FirstOrDefault(c => c.Id == selectedId);
+                categoryInput.SetText(current?.Name ?? noCategoryText, false);
+            }
+
+            void ShowPicker()
+            {
+                if (Activity == null) return;
+                var labels = new List<string> { noCategoryText };
+                labels.AddRange(categories.Select(c => c.Name));
+                labels.Add(GetString(ResourceConstant.String.new_category));
+
+                var checkedIndex = selectedId == 0
+                    ? 0
+                    : categories.FindIndex(c => c.Id == selectedId) + 1;
+
+                var builder = new AlertDialog.Builder(Activity);
+                builder.SetTitle(GetString(ResourceConstant.String.category_hint));
+                // Dismiss via the handler's sender (the dialog interface) rather than a
+                // captured variable — the dialog isn't created until after this lambda,
+                // so any captured reference would still be null when a tap fires.
+                builder.SetSingleChoiceItems([.. labels], checkedIndex, (s, e) =>
+                {
+                    var dialog = s as IDialogInterface;
+                    if (e.Which == 0)
+                    {
+                        selectedId = 0;
+                        UpdateField();
+                        dialog?.Dismiss();
+                    }
+                    else if (e.Which == categories.Count + 1)
+                    {
+                        dialog?.Dismiss();
+                        ShowNewCategoryDialog(name => UiSafe.Run(Context, async () =>
+                        {
+                            var category = await _database.GetOrCreateCategoryAsync(name);
+                            if (categories.All(c => c.Id != category.Id))
+                            {
+                                categories.Add(category);
+                                categories = categories
+                                    .OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+                            }
+                            selectedId = category.Id;
+                            UpdateField();
+                        }));
+                    }
+                    else
+                    {
+                        selectedId = categories[e.Which - 1].Id;
+                        UpdateField();
+                        dialog?.Dismiss();
+                    }
+                });
+                builder.SetNegativeButton(GetString(ResourceConstant.String.cancel), (_, _) => { });
+                builder.Create()?.Show();
+            }
+        }
+
+        private class ClickProxy(Action action) : Java.Lang.Object, View.IOnClickListener
+        {
+            public void OnClick(View? v) => action();
         }
 
         private void ShowNewCategoryDialog(Action<string> onCreated)
@@ -510,9 +542,7 @@ namespace HabitTracker
             _rows = BuildRows(habits);
             _onStartDrag = onStartDrag;
         }
-
-        // Uncategorized habits come first without a header, then each category
-        // alphabetically under its own header. Within a group the input order is kept.
+        
         private static List<Row> BuildRows(List<Habit> habits)
         {
             var rows = new List<Row>();
@@ -572,7 +602,7 @@ namespace HabitTracker
             {
                 var o = oldRows[oldPos];
                 var n = newRows[newPos];
-                if (o.Header != null) return true; // header text equality is checked in AreItemsTheSame
+                if (o.Header != null) return true;
                 return o.Habit!.Name == n.Habit!.Name &&
                        o.Habit.ColorHex == n.Habit.ColorHex;
             }
@@ -596,15 +626,16 @@ namespace HabitTracker
             var habit = row.Habit!;
             habitHolder.HabitName.Text = habit.Name;
 
-            if (!string.IsNullOrEmpty(habit.ColorHex))
+            if (string.IsNullOrEmpty(habit.ColorHex)) return;
+            try
             {
-                try
-                {
-                    var color = Android.Graphics.Color.ParseColor(habit.ColorHex);
-                    var background = habitHolder.ColorIndicator.Background as GradientDrawable;
-                    background?.SetColor(color);
-                }
-                catch { }
+                var color = Android.Graphics.Color.ParseColor(habit.ColorHex);
+                var background = habitHolder.ColorIndicator.Background as GradientDrawable;
+                background?.SetColor(color);
+            }
+            catch
+            {
+                // ignored
             }
         }
 
@@ -634,12 +665,9 @@ namespace HabitTracker
         {
             public bool OnTouch(View? v, MotionEvent? e)
             {
-                if (e?.Action == MotionEventActions.Down)
-                {
-                    onStartDrag(holder);
-                    return true;
-                }
-                return false;
+                if (e?.Action != MotionEventActions.Down) return false;
+                onStartDrag(holder);
+                return true;
             }
         }
 
@@ -704,8 +732,7 @@ namespace HabitTracker
             if (moved) _isDragging = true;
             return moved;
         }
-
-        // Category headers are neither draggable nor swipeable
+        
         public override int GetDragDirs(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) =>
             viewHolder.ItemViewType == HabitAdapter.ViewTypeHeader ? 0 : base.GetDragDirs(recyclerView, viewHolder);
 
@@ -715,11 +742,9 @@ namespace HabitTracker
         public override void ClearView(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder)
         {
             base.ClearView(recyclerView, viewHolder);
-            if (_isDragging)
-            {
-                _isDragging = false;
-                _onDragEnd();
-            }
+            if (!_isDragging) return;
+            _isDragging = false;
+            _onDragEnd();
         }
 
         public override float GetSwipeThreshold(RecyclerView.ViewHolder viewHolder) => 0.2f;
@@ -727,16 +752,15 @@ namespace HabitTracker
         public override void OnSwiped(RecyclerView.ViewHolder viewHolder, int direction)
         {
             var position = viewHolder.BindingAdapterPosition;
-            if (direction == ItemTouchHelper.Left)
+            switch (direction)
             {
-                _onArchive(position);
-            }
-            else if (direction == ItemTouchHelper.Right)
-            {
-                // Edit is a non-removing swipe, so the row must be rebound to clear
-                // ItemTouchHelper's swipe offset — otherwise it stays held open
-                viewHolder.BindingAdapter?.NotifyItemChanged(position);
-                _onEdit(position);
+                case ItemTouchHelper.Left:
+                    _onArchive(position);
+                    break;
+                case ItemTouchHelper.Right:
+                    viewHolder.BindingAdapter?.NotifyItemChanged(position);
+                    _onEdit(position);
+                    break;
             }
         }
 
@@ -754,30 +778,35 @@ namespace HabitTracker
             const float verticalMargin = 12f;
             const float horizontalMargin = 24f;
 
-            if (dX < 0)
+            switch (dX)
             {
-                var maxDisplacement = -itemView.Width * 0.2f;
-                var currentDx = Math.Max(dX, maxDisplacement);
-                var backgroundWidth = Math.Abs(currentDx);
-                var left = itemView.Right + currentDx;
-                var bg = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + verticalMargin,
-                    itemView.Right - horizontalMargin, itemView.Bottom - verticalMargin);
-                c.DrawRoundRect(bg, cornerRadius, cornerRadius, _archivePaint);
-                DrawLabel(c, _context?.GetString(ResourceConstant.String.archive) ?? "Archive",
-                    left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, bg);
-                base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
-            }
-            else if (dX > 0)
-            {
-                var maxDisplacement = itemView.Width * 0.2f;
-                var currentDx = Math.Min(dX, maxDisplacement);
-                var right = itemView.Left + currentDx;
-                var bg = new Android.Graphics.RectF(itemView.Left + horizontalMargin, itemView.Top + verticalMargin,
-                    right + cornerRadius, itemView.Bottom - verticalMargin);
-                c.DrawRoundRect(bg, cornerRadius, cornerRadius, _editPaint);
-                DrawLabel(c, _context?.GetString(ResourceConstant.String.edit) ?? "Edit",
-                    itemView.Left + horizontalMargin + currentDx / 2f, itemView, bg);
-                base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
+                case < 0:
+                {
+                    var maxDisplacement = -itemView.Width * 0.2f;
+                    var currentDx = Math.Max(dX, maxDisplacement);
+                    var backgroundWidth = Math.Abs(currentDx);
+                    var left = itemView.Right + currentDx;
+                    var bg = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + verticalMargin,
+                        itemView.Right - horizontalMargin, itemView.Bottom - verticalMargin);
+                    c.DrawRoundRect(bg, cornerRadius, cornerRadius, _archivePaint);
+                    DrawLabel(c, _context?.GetString(ResourceConstant.String.archive) ?? "Archive",
+                        left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, bg);
+                    base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
+                    break;
+                }
+                case > 0:
+                {
+                    var maxDisplacement = itemView.Width * 0.2f;
+                    var currentDx = Math.Min(dX, maxDisplacement);
+                    var right = itemView.Left + currentDx;
+                    var bg = new Android.Graphics.RectF(itemView.Left + horizontalMargin, itemView.Top + verticalMargin,
+                        right + cornerRadius, itemView.Bottom - verticalMargin);
+                    c.DrawRoundRect(bg, cornerRadius, cornerRadius, _editPaint);
+                    DrawLabel(c, _context?.GetString(ResourceConstant.String.edit) ?? "Edit",
+                        itemView.Left + horizontalMargin + currentDx / 2f, itemView, bg);
+                    base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
+                    break;
+                }
             }
         }
 
