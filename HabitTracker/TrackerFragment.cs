@@ -22,12 +22,8 @@ namespace HabitTracker
         private Button? _addButton;
         private Button? _copyWeekButton;
         private TextView? _dateText;
-        private TextView? _dayOfWeekText;
         private TextView? _relativeDateText;
         private Button? _pickDateButton;
-        private Button? _yesterdayButton;
-        private Button? _todayButton;
-        private Button? _tomorrowButton;
         private LinearLayout? _weekStrip;
         private readonly List<Habit> _habits = [];
         private readonly List<HabitCompletion> _completions = [];
@@ -44,12 +40,8 @@ namespace HabitTracker
             _addButton = view?.FindViewById<Button>(ResourceConstant.Id.add_tracked_habit_button);
             _copyWeekButton = view?.FindViewById<Button>(ResourceConstant.Id.copy_week_button);
             _dateText = view?.FindViewById<TextView>(ResourceConstant.Id.selected_date_text);
-            _dayOfWeekText = view?.FindViewById<TextView>(ResourceConstant.Id.selected_day_of_week);
             _relativeDateText = view?.FindViewById<TextView>(ResourceConstant.Id.relative_date_text);
             _pickDateButton = view?.FindViewById<Button>(ResourceConstant.Id.pick_date_button);
-            _yesterdayButton = view?.FindViewById<Button>(ResourceConstant.Id.yesterday_button);
-            _todayButton = view?.FindViewById<Button>(ResourceConstant.Id.today_button);
-            _tomorrowButton = view?.FindViewById<Button>(ResourceConstant.Id.tomorrow_button);
             _weekStrip = view?.FindViewById<LinearLayout>(ResourceConstant.Id.week_strip);
 
             if (_recyclerView != null)
@@ -87,60 +79,12 @@ namespace HabitTracker
                 _copyWeekButton.Click += (_, _) => UiSafe.Run(Context, CopyHabitsForWeek);
             }
 
+            // Both the compact card and its button open the picker, giving a larger tap target
+            var dateContainer = view?.FindViewById<View>(ResourceConstant.Id.date_display_container);
             if (_pickDateButton != null)
-            {
-                _pickDateButton.Click += (_, _) =>
-                {
-                    var builder = MaterialDatePicker.Builder.DatePicker();
-                    builder.SetTitleText(GetString(ResourceConstant.String.select_date));
-
-                    // Convert DateTime to milliseconds for MaterialDatePicker
-                    var selection =
-                        (long)(_selectedDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc))
-                        .TotalMilliseconds;
-                    builder.SetSelection(Java.Lang.Long.ValueOf(selection));
-
-                    var picker = builder.Build();
-                    picker.AddOnPositiveButtonClickListener(new DatePickerPositiveListener(selectionMs =>
-                    {
-                        var date = DateTimeOffset.FromUnixTimeMilliseconds(selectionMs).DateTime.ToLocalTime();
-                        _selectedDate = date;
-                        UpdateDateText();
-                        LoadData();
-                    }));
-                    picker.Show(ChildFragmentManager, "DATE_PICKER");
-                };
-            }
-
-            if (_yesterdayButton != null)
-            {
-                _yesterdayButton.Click += (_, _) =>
-                {
-                    _selectedDate = DateTime.Today.AddDays(-1);
-                    UpdateDateText();
-                    LoadData();
-                };
-            }
-
-            if (_todayButton != null)
-            {
-                _todayButton.Click += (_, _) =>
-                {
-                    _selectedDate = DateTime.Today;
-                    UpdateDateText();
-                    LoadData();
-                };
-            }
-
-            if (_tomorrowButton != null)
-            {
-                _tomorrowButton.Click += (_, _) =>
-                {
-                    _selectedDate = DateTime.Today.AddDays(1);
-                    UpdateDateText();
-                    LoadData();
-                };
-            }
+                _pickDateButton.Click += (_, _) => ShowDatePicker();
+            if (dateContainer != null)
+                dateContainer.Click += (_, _) => ShowDatePicker();
 
             UpdateDateText();
             LoadData();
@@ -164,11 +108,32 @@ namespace HabitTracker
             catch { return CultureInfo.CurrentCulture; }
         }
 
+        private void ShowDatePicker()
+        {
+            var builder = MaterialDatePicker.Builder.DatePicker();
+            builder.SetTitleText(GetString(ResourceConstant.String.select_date));
+
+            // Convert DateTime to milliseconds for MaterialDatePicker
+            var selection =
+                (long)(_selectedDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                .TotalMilliseconds;
+            builder.SetSelection(Java.Lang.Long.ValueOf(selection));
+
+            var picker = builder.Build();
+            picker.AddOnPositiveButtonClickListener(new DatePickerPositiveListener(selectionMs =>
+            {
+                var date = DateTimeOffset.FromUnixTimeMilliseconds(selectionMs).DateTime.ToLocalTime();
+                _selectedDate = date;
+                UpdateDateText();
+                LoadData();
+            }));
+            picker.Show(ChildFragmentManager, "DATE_PICKER");
+        }
+
         private void UpdateDateText()
         {
             var culture = GetCurrentCulture();
             _dateText?.Text = _selectedDate.ToString("MMMM dd, yyyy", culture);
-            _dayOfWeekText?.Text = _selectedDate.ToString("dddd", culture).ToUpper(culture);
 
             if (_relativeDateText != null)
             {
