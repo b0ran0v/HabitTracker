@@ -46,6 +46,9 @@ namespace HabitTracker
                 _adapter = new HabitAdapter(_habits, holder =>
                     _itemTouchHelper?.StartDrag(holder));
                 _recyclerView.SetAdapter(_adapter);
+                
+                if (_recyclerView.GetItemAnimator() is SimpleItemAnimator animator)
+                    animator.SupportsChangeAnimations = false;
 
                 var callback = new HabitSwipeCallback(
                     onArchive: position => UiSafe.Run(Context, async () =>
@@ -72,7 +75,8 @@ namespace HabitTracker
                         if (_adapter == null) return;
                         await _database.UpdateHabitSortOrdersAsync(_adapter.GetHabitsInDisplayOrder());
                     }),
-                    context: Context);
+                    context: Context,
+                    resetSwipe: ResetSwipeState);
 
                 _itemTouchHelper = new ItemTouchHelper(callback);
                 _itemTouchHelper.AttachToRecyclerView(_recyclerView);
@@ -96,6 +100,19 @@ namespace HabitTracker
         {
             base.OnHiddenChanged(hidden);
             if (!hidden) LoadHabits();
+        }
+        
+        private void ResetSwipeState()
+        {
+            if (_recyclerView == null || _itemTouchHelper == null) return;
+            _itemTouchHelper.AttachToRecyclerView(null);
+            _itemTouchHelper.AttachToRecyclerView(_recyclerView);
+            for (var i = 0; i < _recyclerView.ChildCount; i++)
+            {
+                var child = _recyclerView.GetChildAt(i);
+                if (child == null) continue;
+                child.TranslationX = 0f; child.TranslationY = 0f;
+            }
         }
 
         private void LoadHabits() => UiSafe.Run(Context, LoadHabitsAsync);
@@ -615,6 +632,8 @@ namespace HabitTracker
 
         public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
         {
+            holder.ItemView.TranslationX = 0f;
+
             var row = _rows[position];
             if (holder is HeaderViewHolder headerHolder)
             {
@@ -685,6 +704,7 @@ namespace HabitTracker
         private readonly Action<int> _onEdit;
         private readonly Func<int, int, bool> _onMove;
         private readonly Action _onDragEnd;
+        private readonly Action _resetSwipe;
         private bool _isDragging;
         private readonly Android.Graphics.Paint _archivePaint;
         private readonly Android.Graphics.Paint _editPaint;
@@ -692,13 +712,14 @@ namespace HabitTracker
         private readonly Context? _context;
 
         public HabitSwipeCallback(Action<int> onArchive, Action<int> onEdit, Func<int, int, bool> onMove,
-            Action onDragEnd, Context? context)
+            Action onDragEnd, Context? context, Action resetSwipe)
             : base(ItemTouchHelper.Up | ItemTouchHelper.Down, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
             _onArchive = onArchive;
             _onEdit = onEdit;
             _onMove = onMove;
             _onDragEnd = onDragEnd;
+            _resetSwipe = resetSwipe;
             _context = context;
 
             _archivePaint = new Android.Graphics.Paint
@@ -758,8 +779,8 @@ namespace HabitTracker
                     _onArchive(position);
                     break;
                 case ItemTouchHelper.Right:
-                    viewHolder.BindingAdapter?.NotifyItemChanged(position);
                     _onEdit(position);
+                    viewHolder.ItemView.Post(_resetSwipe);
                     break;
             }
         }
@@ -784,13 +805,16 @@ namespace HabitTracker
                 {
                     var maxDisplacement = -itemView.Width * 0.2f;
                     var currentDx = Math.Max(dX, maxDisplacement);
-                    var backgroundWidth = Math.Abs(currentDx);
-                    var left = itemView.Right + currentDx;
-                    var bg = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + verticalMargin,
-                        itemView.Right - horizontalMargin, itemView.Bottom - verticalMargin);
-                    c.DrawRoundRect(bg, cornerRadius, cornerRadius, _archivePaint);
-                    DrawLabel(c, _context?.GetString(ResourceConstant.String.archive) ?? "Archive",
-                        left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, bg);
+                    if (isCurrentlyActive)
+                    {
+                        var backgroundWidth = Math.Abs(currentDx);
+                        var left = itemView.Right + currentDx;
+                        var bg = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + verticalMargin,
+                            itemView.Right - horizontalMargin, itemView.Bottom - verticalMargin);
+                        c.DrawRoundRect(bg, cornerRadius, cornerRadius, _archivePaint);
+                        DrawLabel(c, _context?.GetString(ResourceConstant.String.archive) ?? "Archive",
+                            left + backgroundWidth / 2f - horizontalMargin / 2f, itemView, bg);
+                    }
                     base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
                     break;
                 }
@@ -798,12 +822,15 @@ namespace HabitTracker
                 {
                     var maxDisplacement = itemView.Width * 0.2f;
                     var currentDx = Math.Min(dX, maxDisplacement);
-                    var right = itemView.Left + currentDx;
-                    var bg = new Android.Graphics.RectF(itemView.Left + horizontalMargin, itemView.Top + verticalMargin,
-                        right + cornerRadius, itemView.Bottom - verticalMargin);
-                    c.DrawRoundRect(bg, cornerRadius, cornerRadius, _editPaint);
-                    DrawLabel(c, _context?.GetString(ResourceConstant.String.edit) ?? "Edit",
-                        itemView.Left + horizontalMargin + currentDx / 2f, itemView, bg);
+                    if (isCurrentlyActive)
+                    {
+                        var right = itemView.Left + currentDx;
+                        var bg = new Android.Graphics.RectF(itemView.Left + horizontalMargin, itemView.Top + verticalMargin,
+                            right + cornerRadius, itemView.Bottom - verticalMargin);
+                        c.DrawRoundRect(bg, cornerRadius, cornerRadius, _editPaint);
+                        DrawLabel(c, _context?.GetString(ResourceConstant.String.edit) ?? "Edit",
+                            itemView.Left + horizontalMargin + currentDx / 2f, itemView, bg);
+                    }
                     base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
                     break;
                 }

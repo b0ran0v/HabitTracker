@@ -28,6 +28,7 @@ namespace HabitTracker
         private readonly List<Habit> _habits = [];
         private readonly List<HabitCompletion> _completions = [];
         private TrackerAdapter? _adapter;
+        private ItemTouchHelper? _itemTouchHelper;
         private readonly Database _database = database;
         private DateTime _selectedDate = DateTime.Today;
 
@@ -50,6 +51,9 @@ namespace HabitTracker
                 _adapter = new TrackerAdapter(_habits, _completions,
                     position => UiSafe.Run(Context, () => OnItemClick(position)));
                 _recyclerView.SetAdapter(_adapter);
+                
+                if (_recyclerView.GetItemAnimator() is SimpleItemAnimator animator)
+                    animator.SupportsChangeAnimations = false;
 
                 var callback = new TrackerSwipeCallback(position => UiSafe.Run(Context, async () =>
                     {
@@ -63,10 +67,10 @@ namespace HabitTracker
                         });
                     }), position => UiSafe.Run(Context, () => OnItemClick(position)),
                     position => _adapter?.GetCompletionAt(position)?.CompletedDate.HasValue == true,
-                    Context);
+                    Context, ResetSwipeState);
 
-                var itemTouchHelper = new ItemTouchHelper(callback);
-                itemTouchHelper.AttachToRecyclerView(_recyclerView);
+                _itemTouchHelper = new ItemTouchHelper(callback);
+                _itemTouchHelper.AttachToRecyclerView(_recyclerView);
             }
 
             if (_addButton != null)
@@ -150,6 +154,19 @@ namespace HabitTracker
             _addButton?.Text = _selectedDate.Date == DateTime.Today
                 ? GetString(ResourceConstant.String.add_to_tracker_today)
                 : string.Format(GetString(ResourceConstant.String.add_to_tracker_for), _selectedDate.ToString("MM-dd"));
+        }
+        
+        private void ResetSwipeState()
+        {
+            if (_recyclerView == null || _itemTouchHelper == null) return;
+            _itemTouchHelper.AttachToRecyclerView(null);
+            _itemTouchHelper.AttachToRecyclerView(_recyclerView);
+            for (var i = 0; i < _recyclerView.ChildCount; i++)
+            {
+                var child = _recyclerView.GetChildAt(i);
+                if (child == null) continue;
+                child.TranslationX = 0f; child.TranslationY = 0f;
+            }
         }
 
         private void LoadData() => UiSafe.Run(Context, LoadDataAsync);
@@ -581,6 +598,8 @@ namespace HabitTracker
 
         public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
         {
+            holder.ItemView.TranslationX = 0f;
+
             var row = _rows[position];
             if (holder is HeaderViewHolder headerHolder)
             {
@@ -618,21 +637,20 @@ namespace HabitTracker
             }
 
             // Apply habit color to indicator
-            if (!string.IsNullOrEmpty(habit.ColorHex))
+            if (string.IsNullOrEmpty(habit.ColorHex)) return;
+            
+            try
             {
-                try
-                {
-                    var color = Android.Graphics.Color.ParseColor(habit.ColorHex);
-                    var background = trackerHolder.ColorIndicator.Background as GradientDrawable;
-                    background?.SetColor(color);
+                var color = Android.Graphics.Color.ParseColor(habit.ColorHex);
+                var background = trackerHolder.ColorIndicator.Background as GradientDrawable;
+                background?.SetColor(color);
 
-                    // Also tint the checkbox
-                    trackerHolder.Checkbox.ButtonTintList = Android.Content.Res.ColorStateList.ValueOf(color);
-                }
-                catch
-                {
-                    // Fallback
-                }
+                // Also tint the checkbox
+                trackerHolder.Checkbox.ButtonTintList = Android.Content.Res.ColorStateList.ValueOf(color);
+            }
+            catch
+            {
+                // Fallback
             }
         }
 
@@ -656,15 +674,9 @@ namespace HabitTracker
                     _onItemClick(holder.BindingAdapterPosition);
                 }
             };
-
-            // Also handle checkbox clicks
-            holder.Checkbox.Click += (_, _) =>
-            {
-                if (holder.BindingAdapterPosition != RecyclerView.NoPosition)
-                {
-                    _onItemClick(holder.BindingAdapterPosition);
-                }
-            };
+            
+            holder.Checkbox.Clickable = false;
+            holder.Checkbox.Focusable = false;
 
             return holder;
         }
@@ -695,6 +707,7 @@ namespace HabitTracker
         private readonly Action<int> _onDeleted;
         private readonly Action<int> _onCompleted;
         private readonly Func<int, bool> _isCompleted;
+        private readonly Action _resetSwipe;
         private readonly Android.Graphics.Paint _deleteBackgroundPaint;
         private readonly Android.Graphics.Paint _completeBackgroundPaint;
         private readonly Android.Graphics.Paint _undoBackgroundPaint;
@@ -702,12 +715,13 @@ namespace HabitTracker
         private readonly Context? _context;
 
         public TrackerSwipeCallback(Action<int> onDeleted, Action<int> onCompleted, Func<int, bool> isCompleted,
-            Context? context)
+            Context? context, Action resetSwipe)
             : base(0, ItemTouchHelper.Left | ItemTouchHelper.Right)
         {
             _onDeleted = onDeleted;
             _onCompleted = onCompleted;
             _isCompleted = isCompleted;
+            _resetSwipe = resetSwipe;
             _context = context;
             _deleteBackgroundPaint = new Android.Graphics.Paint
             {
@@ -761,10 +775,9 @@ namespace HabitTracker
             else if (direction == ItemTouchHelper.Right)
             {
                 var position = viewHolder.BindingAdapterPosition;
-                // Complete/undo keeps the row, so rebind it to clear the swipe offset —
-                // otherwise cancelling the notes dialog leaves the row stuck open
-                viewHolder.BindingAdapter?.NotifyItemChanged(position);
                 _onCompleted(position);
+
+                viewHolder.ItemView.Post(_resetSwipe);
             }
         }
 
@@ -787,26 +800,29 @@ namespace HabitTracker
                     {
                         maxDisplacement = -itemView.Width * 0.2f;
                         currentDx = Math.Max(dX, maxDisplacement);
-                        backgroundPaint = _deleteBackgroundPaint;
-                        text = _context?.GetString(ResourceConstant.String.delete) ?? "Delete";
+                        
+                        if (isCurrentlyActive)
+                        {
+                            backgroundPaint = _deleteBackgroundPaint;
+                            text = _context?.GetString(ResourceConstant.String.delete) ?? "Delete";
 
-                        var left = itemView.Right + currentDx;
-                        var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12,
-                            itemView.Right - 24, itemView.Bottom - 12);
-                        c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
+                            var left = itemView.Right + currentDx;
+                            var background = new Android.Graphics.RectF(left - cornerRadius, itemView.Top + 12,
+                                itemView.Right - 24, itemView.Bottom - 12);
+                            c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
 
-                        var textBounds = new Android.Graphics.Rect();
-                        _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
+                            var textBounds = new Android.Graphics.Rect();
+                            _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
 
-                        // Clip text
-                        c.Save();
-                        c.ClipRect(background);
+                            c.Save();
+                            c.ClipRect(background);
 
-                        var textX = left + Math.Abs(currentDx) / 2f - 12;
-                        var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
-                        c.DrawText(text, textX, textY, _textPaint);
+                            var textX = left + Math.Abs(currentDx) / 2f - 12;
+                            var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
+                            c.DrawText(text, textX, textY, _textPaint);
 
-                        c.Restore();
+                            c.Restore();
+                        }
 
                         base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
                         break;
@@ -817,34 +833,36 @@ namespace HabitTracker
                         maxDisplacement = itemView.Width * 0.2f;
                         currentDx = Math.Min(dX, maxDisplacement);
 
-                        if (_isCompleted(viewHolder.BindingAdapterPosition))
+                        if (isCurrentlyActive)
                         {
-                            backgroundPaint = _undoBackgroundPaint;
-                            text = _context?.GetString(ResourceConstant.String.undo) ?? "Undo";
+                            if (_isCompleted(viewHolder.BindingAdapterPosition))
+                            {
+                                backgroundPaint = _undoBackgroundPaint;
+                                text = _context?.GetString(ResourceConstant.String.undo) ?? "Undo";
+                            }
+                            else
+                            {
+                                backgroundPaint = _completeBackgroundPaint;
+                                text = _context?.GetString(ResourceConstant.String.complete) ?? "Complete";
+                            }
+
+                            var right = itemView.Left + currentDx;
+                            var background = new Android.Graphics.RectF(itemView.Left + 24, itemView.Top + 12,
+                                right + cornerRadius, itemView.Bottom - 12);
+                            c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
+
+                            var textBounds = new Android.Graphics.Rect();
+                            _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
+
+                            c.Save();
+                            c.ClipRect(background);
+
+                            var textX = itemView.Left + currentDx / 2f + 12;
+                            var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
+                            c.DrawText(text, textX, textY, _textPaint);
+
+                            c.Restore();
                         }
-                        else
-                        {
-                            backgroundPaint = _completeBackgroundPaint;
-                            text = _context?.GetString(ResourceConstant.String.complete) ?? "Complete";
-                        }
-
-                        var right = itemView.Left + currentDx;
-                        var background = new Android.Graphics.RectF(itemView.Left + 24, itemView.Top + 12,
-                            right + cornerRadius, itemView.Bottom - 12);
-                        c.DrawRoundRect(background, cornerRadius, cornerRadius, backgroundPaint);
-
-                        var textBounds = new Android.Graphics.Rect();
-                        _textPaint.GetTextBounds(text, 0, text.Length, textBounds);
-
-                        // Clip text
-                        c.Save();
-                        c.ClipRect(background);
-
-                        var textX = itemView.Left + currentDx / 2f + 12;
-                        var textY = itemView.Top + (itemView.Height + textBounds.Height()) / 2f;
-                        c.DrawText(text, textX, textY, _textPaint);
-
-                        c.Restore();
 
                         base.OnChildDraw(c, recyclerView, viewHolder, currentDx, dY, actionState, isCurrentlyActive);
                         break;
